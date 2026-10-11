@@ -4,7 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { PORTFOLIO_DATA } from '../data/portfolioData';
 import { 
   X, User, Award, BookOpen, Briefcase, GraduationCap, Heart, 
-  Settings, Save, RotateCcw, Download, Upload, Plus, Trash2, CheckCircle2, Lock, Image as ImageIcon, Type, UserCheck, Languages 
+  Settings, Save, RotateCcw, Download, Upload, Plus, Trash2, CheckCircle2, Lock, Image as ImageIcon, Type, UserCheck, Languages, Building2, Calendar, MapPin, Link 
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -15,7 +15,7 @@ interface AdminDashboardProps {
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose }) => {
   const { data, updateProfile, updateCoreCompetencies, updateSoftSkills, updateComputerLiteracy, 
           updateEducation, updateResearchProjects, updateCertifications, updateWorkExperience, 
-          updateEntrepreneurial, updateExtraCurricular, updatePersonalDetails, updateLanguages, updatePersonalInterests, 
+          updateEntrepreneurial, updateExtraCurricular, updateAffiliations, updatePersonalDetails, updateLanguages, updatePersonalInterests, 
           updateReferences, updateSectionTitles, resetToDefault } = usePortfolio();
   
   const { isClinical } = useTheme();
@@ -36,6 +36,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
   const [interests, setInterests] = useState([...data.personalInterests]);
   const [references, setReferences] = useState([...data.references]);
   const [certs, setCerts] = useState([...data.certifications]);
+  const [affiliations, setAffiliations] = useState([...(data.affiliations || [])]);
   const [sectionTitles, setSectionTitles] = useState({ ...data.sectionTitles });
 
   // Password change state
@@ -63,6 +64,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
     updatePersonalInterests(interests);
     updateReferences(references);
     updateCertifications(certs);
+    updateAffiliations(affiliations);
     updateSectionTitles(sectionTitles);
     showSuccess('Portfolio content updated and saved successfully!');
   };
@@ -887,7 +889,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                           <label className="block text-xs font-semibold mb-1 text-purple-500">Location</label>
                           <input
                             type="text"
-                            value={job.location}
+                            value={job.location || ''}
                             onChange={e => {
                               const updated = [...workExp];
                               updated[index].location = e.target.value;
@@ -895,6 +897,56 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                             }}
                             className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
                           />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold mb-1 text-purple-500">Organization URL</label>
+                          <input
+                            type="text"
+                            value={job.organizationUrl || ''}
+                            onChange={e => {
+                              const updated = [...workExp];
+                              updated[index].organizationUrl = e.target.value;
+                              setWorkExp(updated);
+                            }}
+                            className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold mb-1 text-purple-500">Responsibilities</label>
+                          {(job.points || []).map((point, pIdx) => (
+                            <div key={pIdx} className="flex gap-2 mb-2">
+                              <input
+                                type="text"
+                                value={point}
+                                onChange={e => {
+                                  const updated = [...workExp];
+                                  updated[index].points[pIdx] = e.target.value;
+                                  setWorkExp(updated);
+                                }}
+                                className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
+                              />
+                              <button
+                                onClick={() => {
+                                  const updated = [...workExp];
+                                  updated[index].points = updated[index].points.filter((_, i) => i !== pIdx);
+                                  setWorkExp(updated);
+                                }}
+                                className="p-2.5 rounded-lg text-red-500 hover:bg-red-500/10"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => {
+                              const updated = [...workExp];
+                              updated[index].points = [...(updated[index].points || []), 'New point'];
+                              setWorkExp(updated);
+                            }}
+                            className="text-xs text-purple-400 hover:text-purple-300 font-semibold"
+                          >
+                            + Add Point
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -907,7 +959,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-semibold text-indigo-400">Entrepreneurial Ventures</h3>
                   <button
-                    onClick={() => setEntExp([...entExp, { role: 'Co-Founder', organization: 'Brand Name', period: '2026 - Present', location: 'Dhaka, Bangladesh', points: ['Venture initiative'] }])}
+                    onClick={() => setEntExp([...entExp, { role: 'New Role', organization: 'Brand Name', organizationUrl: '', period: '2026', location: 'Dhaka', points: ['Venture initiative'] }])}
                     className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
                   >
                     <Plus className="w-3.5 h-3.5" /> Add Venture
@@ -925,29 +977,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-10">
                         <div>
                           <label className="block text-xs font-semibold mb-1 text-indigo-400">Role</label>
-                          <input
-                            type="text"
-                            value={ent.role}
-                            onChange={e => {
-                              const updated = [...entExp];
-                              updated[index].role = e.target.value;
-                              setEntExp(updated);
-                            }}
-                            className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                          />
+                          <input type="text" value={ent.role} onChange={e => { const updated = [...entExp]; updated[index].role = e.target.value; setEntExp(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
                         </div>
                         <div>
                           <label className="block text-xs font-semibold mb-1 text-indigo-400">Venture Name</label>
-                          <input
-                            type="text"
-                            value={ent.organization}
-                            onChange={e => {
-                              const updated = [...entExp];
-                              updated[index].organization = e.target.value;
-                              setEntExp(updated);
-                            }}
-                            className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                          />
+                          <input type="text" value={ent.organization} onChange={e => { const updated = [...entExp]; updated[index].organization = e.target.value; setEntExp(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold mb-1 text-indigo-400">Period</label>
+                          <input type="text" value={ent.period} onChange={e => { const updated = [...entExp]; updated[index].period = e.target.value; setEntExp(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold mb-1 text-indigo-400">Location</label>
+                          <input type="text" value={ent.location || ''} onChange={e => { const updated = [...entExp]; updated[index].location = e.target.value; setEntExp(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold mb-1 text-indigo-400">Venture URL</label>
+                          <input type="text" value={ent.organizationUrl || ''} onChange={e => { const updated = [...entExp]; updated[index].organizationUrl = e.target.value; setEntExp(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold mb-1 text-indigo-400">Points</label>
+                          {(ent.points || []).map((point, pIdx) => (
+                            <div key={pIdx} className="flex gap-2 mb-2">
+                              <input type="text" value={point} onChange={e => { const updated = [...entExp]; updated[index].points[pIdx] = e.target.value; setEntExp(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
+                              <button onClick={() => { const updated = [...entExp]; updated[index].points = updated[index].points.filter((_, i) => i !== pIdx); setEntExp(updated); }} className="p-2.5 rounded-lg text-red-500 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></button>
+                            </div>
+                          ))}
+                          <button onClick={() => { const updated = [...entExp]; updated[index].points = [...(updated[index].points || []), 'New point']; setEntExp(updated); }} className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold">+ Add Point</button>
                         </div>
                       </div>
                     </div>
@@ -960,7 +1016,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-semibold text-pink-400">Courses & Certifications</h3>
                   <button
-                    onClick={() => setCerts([...certs, { title: 'Course Certification', issuer: 'Issuer / Organization', year: '2026' }])}
+                    onClick={() => setCerts([...certs, { title: 'New Certification', issuer: 'Issuer', year: '2026', organizationUrl: '', points: [] }])}
                     className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-pink-600 text-white hover:bg-pink-700"
                   >
                     <Plus className="w-3.5 h-3.5" /> Add Certification
@@ -975,32 +1031,89 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pr-10">
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold mb-1 text-pink-400">Certification Title</label>
-                          <input
-                            type="text"
-                            value={cert.title}
-                            onChange={e => {
-                              const updated = [...certs];
-                              updated[index].title = e.target.value;
-                              setCerts(updated);
-                            }}
-                            className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                          />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-10">
+                        <div>
+                          <label className="block text-xs font-semibold mb-1 text-pink-400 flex items-center gap-1"><Type className="w-3 h-3" /> Title</label>
+                          <input type="text" value={cert.title} onChange={e => { const updated = [...certs]; updated[index].title = e.target.value; setCerts(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold mb-1 text-pink-400">Issuer / Organization</label>
-                          <input
-                            type="text"
-                            value={cert.issuer}
-                            onChange={e => {
-                              const updated = [...certs];
-                              updated[index].issuer = e.target.value;
-                              setCerts(updated);
-                            }}
-                            className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                          />
+                          <label className="block text-xs font-semibold mb-1 text-pink-400 flex items-center gap-1"><Building2 className="w-3 h-3" /> Issuer</label>
+                          <input type="text" value={cert.issuer} onChange={e => { const updated = [...certs]; updated[index].issuer = e.target.value; setCerts(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold mb-1 text-pink-400 flex items-center gap-1"><Calendar className="w-3 h-3" /> Year</label>
+                          <input type="text" value={cert.year} onChange={e => { const updated = [...certs]; updated[index].year = e.target.value; setCerts(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold mb-1 text-pink-400 flex items-center gap-1"><MapPin className="w-3 h-3" /> Location</label>
+                          <input type="text" value={cert.location || ''} onChange={e => { const updated = [...certs]; updated[index].location = e.target.value; setCerts(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold mb-1 text-pink-400 flex items-center gap-1"><Link className="w-3 h-3" /> URL</label>
+                          <input type="text" value={cert.organizationUrl || ''} onChange={e => { const updated = [...certs]; updated[index].organizationUrl = e.target.value; setCerts(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold mb-1 text-pink-400">Details</label>
+                          {(cert.points || []).map((point, pIdx) => (
+                            <div key={pIdx} className="flex gap-2 mb-2">
+                              <input type="text" value={point} onChange={e => { const updated = [...certs]; if (!updated[index].points) updated[index].points = []; updated[index].points[pIdx] = e.target.value; setCerts(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
+                              <button onClick={() => { const updated = [...certs]; updated[index].points = (updated[index].points || []).filter((_, i) => i !== pIdx); setCerts(updated); }} className="p-2.5 rounded-lg text-red-500 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></button>
+                            </div>
+                          ))}
+                          <button onClick={() => { const updated = [...certs]; updated[index].points = [...(updated[index].points || []), 'New detail']; setCerts(updated); }} className="text-xs text-pink-400 hover:text-pink-300 font-semibold">+ Add Detail</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 4. Affiliations & Voluntary */}
+              <div className="pt-4 border-t border-purple-500/20">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-emerald-400">Affiliations & Voluntary</h3>
+                  <button
+                    onClick={() => setAffiliations([...affiliations, { role: 'Member', organization: 'Organization Name', period: '2026', location: 'Dhaka', points: ['Contribution'] }])}
+                    className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Affiliation
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  {affiliations.map((aff, index) => (
+                    <div key={index} className={`p-4 rounded-xl border ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'} space-y-3 relative`}>
+                      <button
+                        onClick={() => setAffiliations(affiliations.filter((_, i) => i !== index))}
+                        className="absolute top-4 right-4 p-2 text-red-500 hover:bg-red-500/10 rounded-lg"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-10">
+                        <div>
+                          <label className="block text-xs font-semibold mb-1 text-emerald-400 flex items-center gap-1"><User className="w-3 h-3" /> Role</label>
+                          <input type="text" value={aff.role} onChange={e => { const updated = [...affiliations]; updated[index].role = e.target.value; setAffiliations(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold mb-1 text-emerald-400 flex items-center gap-1"><Building2 className="w-3 h-3" /> Organization</label>
+                          <input type="text" value={aff.organization} onChange={e => { const updated = [...affiliations]; updated[index].organization = e.target.value; setAffiliations(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold mb-1 text-emerald-400 flex items-center gap-1"><Calendar className="w-3 h-3" /> Period</label>
+                          <input type="text" value={aff.period} onChange={e => { const updated = [...affiliations]; updated[index].period = e.target.value; setAffiliations(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold mb-1 text-emerald-400 flex items-center gap-1"><MapPin className="w-3 h-3" /> Location</label>
+                          <input type="text" value={aff.location} onChange={e => { const updated = [...affiliations]; updated[index].location = e.target.value; setAffiliations(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold mb-1 text-emerald-400">Contributions</label>
+                          {(aff.points || []).map((point, pIdx) => (
+                            <div key={pIdx} className="flex gap-2 mb-2">
+                              <input type="text" value={point} onChange={e => { const updated = [...affiliations]; if (!updated[index].points) updated[index].points = []; updated[index].points[pIdx] = e.target.value; setAffiliations(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
+                              <button onClick={() => { const updated = [...affiliations]; updated[index].points = (updated[index].points || []).filter((_, i) => i !== pIdx); setAffiliations(updated); }} className="p-2.5 rounded-lg text-red-500 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></button>
+                            </div>
+                          ))}
+                          <button onClick={() => { const updated = [...affiliations]; updated[index].points = [...(updated[index].points || []), 'New contribution']; setAffiliations(updated); }} className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold">+ Add Contribution</button>
                         </div>
                       </div>
                     </div>
@@ -1009,6 +1122,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
               </div>
             </div>
           )}
+
 
           {activeTab === 'languages' && (
             <div className="space-y-4">

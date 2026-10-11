@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { PORTFOLIO_DATA, ResearchProject, WorkExperienceItem, EducationItem, ReferenceItem, PersonalInterestItem, LanguageProficiency, CertificationItem, ExtraCurricularItem } from '../data/portfolioData';
+import { PORTFOLIO_DATA, ResearchProject, WorkExperienceItem, EducationItem, ReferenceItem, PersonalInterestItem, LanguageProficiency, CertificationItem, ExtraCurricularItem, AffiliationItem } from '../data/portfolioData';
 
 export interface PortfolioData {
   profile: typeof PORTFOLIO_DATA.profile & { customCvUrl?: string; customCvName?: string };
@@ -12,6 +12,7 @@ export interface PortfolioData {
   workExperience: WorkExperienceItem[];
   entrepreneurialExperience: WorkExperienceItem[];
   extraCurricular: ExtraCurricularItem[];
+  affiliations: AffiliationItem[];
   personalDetails: typeof PORTFOLIO_DATA.personalDetails;
   languages: LanguageProficiency[];
   personalInterests: PersonalInterestItem[];
@@ -31,6 +32,7 @@ interface PortfolioContextType {
   updateWorkExperience: (work: WorkExperienceItem[]) => void;
   updateEntrepreneurial: (ent: WorkExperienceItem[]) => void;
   updateExtraCurricular: (extra: ExtraCurricularItem[]) => void;
+  updateAffiliations: (aff: AffiliationItem[]) => void;
   updatePersonalDetails: (details: Partial<PortfolioData['personalDetails']>) => void;
   updateLanguages: (languages: LanguageProficiency[]) => void;
   updatePersonalInterests: (interests: PersonalInterestItem[]) => void;
@@ -137,8 +139,12 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setData(prev => ({ ...prev, entrepreneurialExperience }));
   };
 
-  const updateExtraCurricular = (extraCurricular: { role: string; organization: string; period: string; points: string[] }[]) => {
+  const updateExtraCurricular = (extraCurricular: ExtraCurricularItem[]) => {
     setData(prev => ({ ...prev, extraCurricular }));
+  };
+
+  const updateAffiliations = (affiliations: AffiliationItem[]) => {
+    setData(prev => ({ ...prev, affiliations }));
   };
 
   const updatePersonalDetails = (personalDetailsUpdate: Partial<PortfolioData['personalDetails']>) => {
@@ -186,6 +192,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updateWorkExperience,
         updateEntrepreneurial,
         updateExtraCurricular,
+        updateAffiliations,
         updatePersonalDetails,
         updateLanguages,
         updatePersonalInterests,

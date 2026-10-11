@@ -19,10 +19,19 @@ export interface WorkExperienceItem {
   points: string[];
 }
 
+export interface AffiliationItem {
+  role: string;
+  organization: string;
+  period: string;
+  location: string;
+  points: string[];
+}
+
 export interface CertificationItem {
   title: string;
   issuer: string;
   year: string;
+  location?: string;
   organizationUrl?: string;
   points?: string[];
 }
@@ -272,6 +281,7 @@ export const PORTFOLIO_DATA = {
       ],
     },
   ],
+  affiliations: [],
 
   // Personal Particulars from CV (Birth year strictly omitted as requested)
   personalDetails: {

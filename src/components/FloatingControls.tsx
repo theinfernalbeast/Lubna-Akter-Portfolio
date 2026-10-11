@@ -38,7 +38,7 @@ export const FloatingControls: React.FC<FloatingControlsProps> = ({ onOpenDashbo
   return (
     <aside 
       aria-label="Floating page controls"
-      className="fixed right-5 sm:right-6 bottom-6 z-50 flex flex-col items-center gap-3 select-none pointer-events-none"
+      className="fixed right-4 bottom-6 z-50 flex flex-col items-center gap-3 select-none pointer-events-none"
     >
       {/* 1. Edit Content / Admin Dashboard Button (Top) - Right side stuck to window, icon only with modern animation */}
       <motion.button
