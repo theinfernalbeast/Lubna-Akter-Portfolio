@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePortfolio } from '../context/PortfolioContext';
-import { Sparkles, CheckCircle2, Layers, Award, Cpu, Users } from 'lucide-react';
+import { Sparkles, Layers, Award, Cpu, Users, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 export const CompetenciesSection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'core' | 'soft' | 'computer'>('core');
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
-  const { lang, t } = useLanguage();
+  const { t } = useLanguage();
   const { data } = usePortfolio();
 
   return (
@@ -28,9 +28,6 @@ export const CompetenciesSection: React.FC = () => {
           <h2 className="text-2xl sm:text-3xl font-bold text-white mt-1 tracking-tight">
             {data.sectionTitles?.skills || t.skills.title}
           </h2>
-          <p className="text-sm text-purple-200/70 mt-1.5 max-w-xl mx-auto">
-            {t.skills.subtitle}
-          </p>
         </motion.div>
 
         {/* Concise Organized Category Navigation Tabs */}

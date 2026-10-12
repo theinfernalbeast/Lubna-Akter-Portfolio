@@ -308,6 +308,12 @@ export const PORTFOLIO_DATA = {
     },
   ] as LanguageProficiency[],
 
+  skillProficiency: [
+    { subject: 'Pharmacology', A: 90 },
+    { subject: 'Drug Design', A: 85 },
+    { subject: 'Medical Writing', A: 80 },
+  ],
+
   // Previous Personal Interests structure preferred by user:
   // Wanderlust (Travel) • Otaku (Anime & K-Dramas) • Glam (Makeup Artistry & Skincare) • Aesthetic Journaling • Foodie (Culinary Exploration)
   personalInterests: [

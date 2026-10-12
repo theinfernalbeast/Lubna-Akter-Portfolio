@@ -67,7 +67,7 @@ export const ResearchSection: React.FC = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -12, scale: 0.99 }}
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="bg-slate-900/80 border border-purple-400/40 rounded-2xl p-5 sm:p-7 shadow-xl lavender-glow space-y-4"
+            className="bg-slate-900/80 border border-purple-400/40 rounded-2xl p-5 sm:p-7 shadow-xl lavender-glow space-y-4 transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl hover:shadow-purple-500/20"
           >
             {/* Top Bar: Role & Status */}
             <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-purple-500/20 text-xs font-mono">

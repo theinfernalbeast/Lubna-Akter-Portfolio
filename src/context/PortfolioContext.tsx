@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { PORTFOLIO_DATA, ResearchProject, WorkExperienceItem, EducationItem, ReferenceItem, PersonalInterestItem, LanguageProficiency, CertificationItem, ExtraCurricularItem, AffiliationItem } from '../data/portfolioData';
 
+export interface SkillProficiency {
+  subject: string;
+  A: number;
+}
+
 export interface PortfolioData {
   profile: typeof PORTFOLIO_DATA.profile & { customCvUrl?: string; customCvName?: string };
   coreCompetencies: string[];
@@ -15,6 +20,7 @@ export interface PortfolioData {
   affiliations: AffiliationItem[];
   personalDetails: typeof PORTFOLIO_DATA.personalDetails;
   languages: LanguageProficiency[];
+  skillProficiency: SkillProficiency[];
   personalInterests: PersonalInterestItem[];
   references: ReferenceItem[];
   sectionTitles: typeof PORTFOLIO_DATA.sectionTitles;
@@ -35,6 +41,7 @@ interface PortfolioContextType {
   updateAffiliations: (aff: AffiliationItem[]) => void;
   updatePersonalDetails: (details: Partial<PortfolioData['personalDetails']>) => void;
   updateLanguages: (languages: LanguageProficiency[]) => void;
+  updateSkillProficiency: (skillProficiency: SkillProficiency[]) => void;
   updatePersonalInterests: (interests: PersonalInterestItem[]) => void;
   updateReferences: (references: ReferenceItem[]) => void;
   updateSectionTitles: (titles: Partial<typeof PORTFOLIO_DATA.sectionTitles>) => void;
@@ -173,6 +180,10 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   };
 
+  const updateSkillProficiency = (skillProficiency: SkillProficiency[]) => {
+    setData(prev => ({ ...prev, skillProficiency }));
+  };
+
   const resetToDefault = () => {
     setData(PORTFOLIO_DATA as PortfolioData);
     localStorage.removeItem(STORAGE_KEY);
@@ -195,6 +206,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updateAffiliations,
         updatePersonalDetails,
         updateLanguages,
+        updateSkillProficiency,
         updatePersonalInterests,
         updateReferences,
         updateSectionTitles,

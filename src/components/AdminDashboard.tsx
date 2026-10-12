@@ -6,6 +6,7 @@ import {
   X, User, Award, BookOpen, Briefcase, GraduationCap, Heart, 
   Settings, Save, RotateCcw, Download, Upload, Plus, Trash2, CheckCircle2, Lock, Image as ImageIcon, Type, UserCheck, Languages, Building2, Calendar, MapPin, Link 
 } from 'lucide-react';
+import { TrafficChart } from './TrafficChart';
 
 interface AdminDashboardProps {
   isOpen: boolean;
@@ -16,7 +17,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
   const { data, updateProfile, updateCoreCompetencies, updateSoftSkills, updateComputerLiteracy, 
           updateEducation, updateResearchProjects, updateCertifications, updateWorkExperience, 
           updateEntrepreneurial, updateExtraCurricular, updateAffiliations, updatePersonalDetails, updateLanguages, updatePersonalInterests, 
-          updateReferences, updateSectionTitles, resetToDefault } = usePortfolio();
+          updateReferences, updateSectionTitles, updateSkillProficiency, resetToDefault } = usePortfolio();
   
   const { isClinical } = useTheme();
   const [activeTab, setActiveTab] = useState<'profile' | 'skills' | 'education' | 'research' | 'experience' | 'languages' | 'interests' | 'references' | 'titles' | 'settings'>('profile');
@@ -38,10 +39,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
   const [certs, setCerts] = useState([...data.certifications]);
   const [affiliations, setAffiliations] = useState([...(data.affiliations || [])]);
   const [sectionTitles, setSectionTitles] = useState({ ...data.sectionTitles });
+  const [skillProficiency, setSkillProficiency] = useState(data.skillProficiency || [
+    { subject: 'Pharmacology', A: 90 },
+    { subject: 'Drug Design', A: 85 },
+    { subject: 'Medical Writing', A: 80 },
+  ]);
 
   // Password change state
   const [newAdminPwd, setNewAdminPwd] = useState('');
   const [pwdMsg, setPwdMsg] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   if (!isOpen) return null;
 
@@ -50,7 +57,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
     setTimeout(() => setSuccessMessage(''), 3500);
   };
 
-  const handleSaveAll = () => {
+  const handleSaveAll = async () => {
+    setIsSaving(true);
     updateProfile(profile);
     updateCoreCompetencies(coreComps.filter(Boolean));
     updateSoftSkills(softSkills.filter(Boolean));
@@ -66,6 +74,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
     updateCertifications(certs);
     updateAffiliations(affiliations);
     updateSectionTitles(sectionTitles);
+    updateSkillProficiency(skillProficiency);
+    await new Promise(resolve => setTimeout(resolve, 800)); // Simulating a small delay
+    setIsSaving(false);
     showSuccess('Portfolio content updated and saved successfully!');
   };
 
@@ -129,18 +140,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-      <div className={`relative w-full max-w-5xl max-h-[90vh] flex flex-col rounded-2xl shadow-2xl border ${
-        isClinical ? 'bg-white text-slate-800 border-purple-200' : 'bg-slate-900 text-slate-100 border-purple-900/50'
+      <div className={`relative w-full max-w-6xl max-h-[90vh] flex flex-col rounded-3xl shadow-2xl border ${
+        isClinical ? 'bg-white text-slate-800 border-purple-200' : 'bg-slate-900/95 backdrop-blur-xl text-slate-100 border-purple-500/30'
       }`}>
         {/* Header */}
-        <div className={`flex items-center justify-between p-6 border-b ${isClinical ? 'border-purple-100 bg-purple-50/50' : 'border-purple-900/30 bg-purple-950/20'}`}>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-purple-600 text-white shadow-lg shadow-purple-500/30">
+        <div className={`flex items-center justify-between p-6 border-b ${isClinical ? 'border-slate-200 bg-white' : 'border-purple-500/20 bg-slate-950/50'}`}>
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-900/20">
               <Settings className="w-6 h-6 animate-spin-slow" />
             </div>
             <div>
-              <h2 className="text-xl font-bold font-serif">Portfolio Content & Image Editor Dashboard</h2>
-              <p className="text-xs text-purple-500 font-medium">Password Protected · Live CV & Image Customizer</p>
+              <h2 className="text-2xl font-bold text-white tracking-tight">
+                Portfolio Dashboard
+              </h2>
             </div>
           </div>
           
@@ -152,9 +164,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
             )}
             <button
               onClick={handleSaveAll}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium shadow-lg shadow-purple-600/30 hover:opacity-90 transition-all text-sm"
+              disabled={isSaving}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold shadow-lg transition-all text-sm ${
+                isSaving 
+                  ? 'bg-slate-600 text-slate-300 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:scale-105 hover:shadow-purple-600/40'
+              }`}
             >
-              <Save className="w-4 h-4" /> Save Changes
+              <Save className={`w-4 h-4 ${isSaving ? 'animate-spin' : ''}`} /> 
+              {isSaving ? 'Saving...' : 'Save Changes'}
             </button>
             <button
               onClick={onClose}
@@ -175,16 +193,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
         {/* Navigation Tabs */}
         <div className={`flex overflow-x-auto gap-2 p-3 border-b scrollbar-none ${isClinical ? 'border-slate-100 bg-slate-50' : 'border-slate-800 bg-slate-950/50'}`}>
           {[
-            { id: 'profile', label: 'Profile & Photos', icon: User },
-            { id: 'skills', label: 'Skills & Competencies', icon: Award },
-            { id: 'education', label: 'Education', icon: GraduationCap },
-            { id: 'research', label: 'Research Projects & Images', icon: BookOpen },
-            { id: 'experience', label: 'Work & Experience', icon: Briefcase },
+            { id: 'profile', label: 'Identity & Links', icon: User },
+            { id: 'experience', label: 'Work & Leadership', icon: Briefcase },
+            { id: 'education', label: 'Education & Certs', icon: GraduationCap },
+            { id: 'research', label: 'Research & Projects', icon: BookOpen },
+            { id: 'skills', label: 'Expertise & Tools', icon: Award },
             { id: 'languages', label: 'Languages', icon: Languages },
-            { id: 'interests', label: 'Passions & Interests', icon: Heart },
-            { id: 'references', label: 'Academic References', icon: UserCheck },
-            { id: 'titles', label: 'Section Titles', icon: Type },
-            { id: 'settings', label: 'Security & Backup', icon: Lock },
+            { id: 'interests', label: 'Interests', icon: Heart },
+            { id: 'references', label: 'References', icon: UserCheck },
+            { id: 'titles', label: 'Labels', icon: Type },
+            { id: 'settings', label: 'Configuration', icon: Settings },
           ].map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -192,12 +210,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all duration-200 ${
                   isActive
-                    ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
                     : isClinical
                     ? 'hover:bg-slate-200 text-slate-600'
-                    : 'hover:bg-slate-800 text-slate-400'
+                    : 'hover:bg-slate-800 text-slate-400 hover:text-slate-200'
                 }`}
               >
                 <Icon className="w-4 h-4" /> {tab.label}
@@ -218,7 +236,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                     type="text"
                     value={profile.name}
                     onChange={e => setProfile({ ...profile, name: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
+                    className={`w-full p-3 rounded-xl border text-sm transition-all duration-200 ${isClinical ? 'bg-white border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20' : 'bg-slate-950 border-slate-700 text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/30'}`}
                   />
                 </div>
                 <div>
@@ -227,7 +245,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                     type="text"
                     value={profile.subtitle}
                     onChange={e => setProfile({ ...profile, subtitle: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
+                    className={`w-full p-3 rounded-xl border text-sm transition-all duration-200 ${isClinical ? 'bg-white border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20' : 'bg-slate-950 border-slate-700 text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/30'}`}
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -236,7 +254,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                     type="text"
                     value={profile.headline}
                     onChange={e => setProfile({ ...profile, headline: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
+                    className={`w-full p-3 rounded-xl border text-sm transition-all duration-200 ${isClinical ? 'bg-white border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20' : 'bg-slate-950 border-slate-700 text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/30'}`}
                   />
                 </div>
                 <div className="md:col-span-2 p-4 rounded-xl border bg-slate-950/60 border-purple-500/30">
@@ -280,7 +298,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                       value={profile.photoUrl}
                       onChange={e => setProfile({ ...profile, photoUrl: e.target.value })}
                       placeholder="Enter image URL..."
-                      className={`flex-1 p-3 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
+                      className={`flex-1 p-3 rounded-xl border text-sm transition-all duration-200 ${isClinical ? 'bg-white border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20' : 'bg-slate-950 border-slate-700 text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/30'}`}
                     />
                     <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 cursor-pointer shrink-0">
                       <Upload className="w-4 h-4" /> Upload Image
@@ -1532,6 +1550,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
               <h3 className="text-lg font-semibold text-center">Security & Password Protection</h3>
               
               <div className={`p-6 rounded-2xl border space-y-4 ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'}`}>
+                <TrafficChart />
+
                 <div>
                   <h4 className="font-medium text-sm mb-1">Change Admin Dashboard Password</h4>
                   <p className="text-xs text-slate-400 mb-3">Set a custom password to protect the content editor.</p>

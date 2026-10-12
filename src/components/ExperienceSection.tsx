@@ -226,9 +226,12 @@ export const ExperienceSection: React.FC = () => {
                 onClick={() => setActiveCardIndex(isClicked ? null : idx)}
                 className={`snap-start shrink-0 w-[340px] sm:w-[380px] p-6 rounded-2xl border transition-all duration-300 cursor-pointer flex flex-col justify-between relative group ${
                   isExpanded
-                    ? 'bg-slate-900 border-purple-400 shadow-2xl shadow-purple-500/25 lavender-glow scale-105 z-10'
-                    : 'bg-slate-900/70 border-purple-500/20 hover:border-purple-400/50 shadow-xl shadow-black/30'
+                    ? 'bg-slate-900 border-purple-400 shadow-2xl shadow-purple-500/25 lavender-glow scale-[1.03] z-10'
+                    : 'bg-slate-900/70 border-purple-500/20 hover:border-purple-400/50 shadow-xl shadow-black/30 hover:scale-[1.02] hover:backdrop-blur-sm'
                 }`}
+                style={{
+                  filter: hoveredCardIndex !== null && !isExpanded ? 'blur(2px)' : 'blur(0px)',
+                }}
               >
                 <div>
                   <div className="flex flex-wrap items-center gap-2 mb-3">

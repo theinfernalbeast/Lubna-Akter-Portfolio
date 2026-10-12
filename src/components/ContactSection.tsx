@@ -223,11 +223,11 @@ export const ContactSection: React.FC<ContactSectionProps> = () => {
               <div className="relative w-full flex-1 min-h-[320px] bg-slate-950">
                 <iframe
                   title="Lubna Akter Location Map"
-                  src="https://maps.google.com/maps?q=Vatara%2C%20Gulshan%2C%20Dhaka%2C%20Bangladesh&t=&z=14&ie=UTF8&iwloc=&output=embed"
+                  src="https://maps.google.com/maps?q=Vatara%2C%20Gulshan%2C%20Dhaka%2C%20Bangladesh&t=m&z=14&ie=UTF8&iwloc=&output=embed"
                   className={`w-full h-full border-0 transition-opacity ${
                     isClinical
-                      ? 'opacity-95 hover:opacity-100'
-                      : 'filter invert contrast-125 opacity-85 hover:opacity-100'
+                      ? 'opacity-100'
+                      : 'opacity-90 hover:opacity-100 grayscale-[0.5] contrast-100'
                   }`}
                   loading="lazy"
                   allowFullScreen
