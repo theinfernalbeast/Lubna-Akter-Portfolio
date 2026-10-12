@@ -62,42 +62,42 @@ export const ContactSection: React.FC<ContactSectionProps> = () => {
   return (
     <section id="contact" className="py-20 border-t border-purple-500/20 relative">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Header */}
+        {/* Section Header - Central aligned on mobile */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-60px' }}
+          viewport={{ once: true }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="mb-12"
+          className="mb-8 sm:mb-12 flex flex-col items-center text-center lg:items-start lg:text-left px-2"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-400/30 text-purple-300 text-xs font-mono mb-2">
-            <Mail className="w-3.5 h-3.5 text-purple-400" />
+          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-400/30 text-purple-300 text-[11px] sm:text-xs font-mono mb-2 mx-auto lg:mx-0">
+            <Mail className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-purple-400" />
             <span>{t.contact.tag}</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-white mt-1 tracking-tight">
+          <h2 className="text-xl sm:text-3xl font-bold text-white mt-1 tracking-tight text-center lg:text-left">
             {t.contact.title}
           </h2>
-          <p className="text-sm text-purple-200/70 mt-1.5 max-w-2xl">
+          <p className="text-xs sm:text-sm text-purple-200/70 mt-1.5 max-w-2xl text-center lg:text-left mx-auto lg:mx-0 leading-relaxed">
             {t.contact.subtitle}
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-stretch">
           {/* Left Column: Direct Functional Email Transmission Form */}
           <motion.div
             initial={{ opacity: 0, y: 25 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-60px' }}
+            viewport={{ once: true }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="lg:col-span-7 bg-slate-900/60 border border-purple-500/20 rounded-2xl p-6 sm:p-8 shadow-xl shadow-black/20 flex flex-col justify-between"
+            className="lg:col-span-7 bg-slate-900/60 border border-purple-500/20 rounded-2xl p-4 sm:p-8 shadow-xl shadow-black/20 flex flex-col justify-between"
           >
             <div>
-              <div className="flex items-center justify-between pb-4 mb-6 border-b border-purple-500/20">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-center justify-between text-center sm:text-left gap-2 pb-4 mb-5 border-b border-purple-500/20">
+                <h3 className="text-sm sm:text-base font-bold text-white flex items-center justify-center sm:justify-start gap-2">
                   <Send className="w-4 h-4 text-purple-400" />
                   <span>{t.contact.sendDirectly}</span>
                 </h3>
-                <span className="text-xs font-mono text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-400/30">
+                <span className="text-[11px] sm:text-xs font-mono text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-400/30">
                   {data.profile.email}
                 </span>
               </div>
@@ -198,13 +198,13 @@ export const ContactSection: React.FC<ContactSectionProps> = () => {
           <motion.div
             initial={{ opacity: 0, y: 25 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-60px' }}
+            viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
             className="lg:col-span-5 flex flex-col"
           >
             <div className="bg-slate-900/60 border border-purple-500/20 rounded-2xl overflow-hidden shadow-xl shadow-black/20 flex flex-col h-full">
-              <div className="p-4 border-b border-purple-500/20 flex items-center justify-between bg-slate-950/60">
-                <div className="flex items-center gap-2 text-xs font-mono text-purple-300">
+              <div className="p-3 sm:p-4 border-b border-purple-500/20 flex flex-col sm:flex-row items-center justify-between text-center sm:text-left gap-1.5 bg-slate-950/60">
+                <div className="flex items-center justify-center sm:justify-start gap-2 text-xs font-mono text-purple-300">
                   <MapPin className="w-4 h-4 text-purple-400" />
                   <span>{t.contact.locationMapTitle}</span>
                 </div>
@@ -212,7 +212,7 @@ export const ContactSection: React.FC<ContactSectionProps> = () => {
                   href="https://maps.google.com/?q=Vatara%2C+Gulshan%2C+Dhaka%2C+Bangladesh"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[11px] font-mono text-purple-400 hover:text-white flex items-center gap-1 transition-colors"
+                  className="text-[11px] font-mono text-purple-400 hover:text-white flex items-center justify-center gap-1 transition-colors"
                 >
                   <span>{t.contact.openInMaps}</span>
                   <ExternalLink className="w-3 h-3" />
@@ -220,7 +220,7 @@ export const ContactSection: React.FC<ContactSectionProps> = () => {
               </div>
 
               {/* Map Iframe */}
-              <div className="relative w-full flex-1 min-h-[320px] bg-slate-950">
+              <div className="relative w-full flex-1 min-h-[260px] sm:min-h-[320px] bg-slate-950">
                 <iframe
                   title="Lubna Akter Location Map"
                   src="https://maps.google.com/maps?q=Vatara%2C%20Gulshan%2C%20Dhaka%2C%20Bangladesh&t=m&z=14&ie=UTF8&iwloc=&output=embed"
@@ -234,8 +234,8 @@ export const ContactSection: React.FC<ContactSectionProps> = () => {
                 />
               </div>
 
-              <div className="p-4 bg-slate-950/90 border-t border-purple-500/20 text-xs text-slate-300 flex items-center justify-between">
-                <div>
+              <div className="p-3 sm:p-4 bg-slate-950/90 border-t border-purple-500/20 text-xs text-slate-300 flex flex-col sm:flex-row items-center justify-between text-center sm:text-left gap-2">
+                <div className="text-center sm:text-left">
                   <span className="text-[10px] font-mono text-purple-400 block uppercase">Address</span>
                   <span className="font-medium text-slate-200">{data.profile.location}</span>
                 </div>

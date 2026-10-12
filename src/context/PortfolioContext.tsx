@@ -6,6 +6,24 @@ export interface SkillProficiency {
   A: number;
 }
 
+export interface MetaDataConfig {
+  title: string;
+  description: string;
+  keywords: string;
+  faviconUrl?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+}
+
+export const DEFAULT_META_DATA: MetaDataConfig = {
+  title: 'Lubna Akter Portfolio',
+  description: 'Official portfolio of Lubna Akter — Pharmacy Student, Pharmaceutical Researcher, and Clinical Science Scholar specializing in Pharmacology, Drug Design, and Medical Writing.',
+  keywords: 'Lubna Akter, Clinical Pharmacy, Pharmaceutical Research, Pharmacology, Drug Design, Medical Writing, Pharmacy Student Portfolio, UITS, Bangladesh Pharmacist',
+  faviconUrl: '',
+  ogTitle: 'Lubna Akter Portfolio',
+  ogDescription: 'Official portfolio of Lubna Akter — Pharmacy Student, Pharmaceutical Researcher, and Clinical Science Scholar specializing in Pharmacology, Drug Design, and Medical Writing.',
+};
+
 export interface PortfolioData {
   profile: typeof PORTFOLIO_DATA.profile & { customCvUrl?: string; customCvName?: string };
   coreCompetencies: string[];
@@ -24,6 +42,8 @@ export interface PortfolioData {
   personalInterests: PersonalInterestItem[];
   references: ReferenceItem[];
   sectionTitles: typeof PORTFOLIO_DATA.sectionTitles;
+  metaData?: MetaDataConfig;
+  secondaryAccent?: string;
 }
 
 interface PortfolioContextType {
@@ -45,6 +65,8 @@ interface PortfolioContextType {
   updatePersonalInterests: (interests: PersonalInterestItem[]) => void;
   updateReferences: (references: ReferenceItem[]) => void;
   updateSectionTitles: (titles: Partial<typeof PORTFOLIO_DATA.sectionTitles>) => void;
+  updateMetaData: (meta: Partial<MetaDataConfig>) => void;
+  updateSecondaryAccent: (color: string) => void;
   resetToDefault: () => void;
 }
 
@@ -85,10 +107,21 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           mergedSectionTitles.about = 'Personal Passions & Creative Pursuits';
         }
 
+        // Ensure education always restores all 5 qualifications with proper timeline and location
+        let mergedEducation = PORTFOLIO_DATA.education;
+        if (
+          Array.isArray(parsed.education) &&
+          parsed.education.length === PORTFOLIO_DATA.education.length &&
+          parsed.education.every((e: any) => e.timeline && e.location && e.discipline)
+        ) {
+          mergedEducation = parsed.education;
+        }
+
         return {
           ...PORTFOLIO_DATA,
           ...parsed,
           profile: mergedProfile,
+          education: mergedEducation,
           languages: parsed.languages && parsed.languages.length > 0 ? parsed.languages : PORTFOLIO_DATA.languages,
           sectionTitles: mergedSectionTitles,
         };
@@ -184,6 +217,72 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setData(prev => ({ ...prev, skillProficiency }));
   };
 
+  const updateMetaData = (metaUpdate: Partial<MetaDataConfig>) => {
+    setData(prev => ({
+      ...prev,
+      metaData: { ...(prev.metaData || DEFAULT_META_DATA), ...metaUpdate }
+    }));
+  };
+
+  const updateSecondaryAccent = (color: string) => {
+    setData(prev => ({
+      ...prev,
+      secondaryAccent: color
+    }));
+  };
+
+  // Synchronize dynamic metadata and secondary accent directly to the live document
+  useEffect(() => {
+    const meta = data.metaData || DEFAULT_META_DATA;
+
+    // 1. Page Title
+    if (meta.title) {
+      document.title = meta.title;
+    }
+
+    // 2. Meta Description
+    if (meta.description) {
+      const descTag = document.querySelector('meta[name="description"]');
+      if (descTag) {
+        descTag.setAttribute('content', meta.description);
+      }
+      const ogDescTag = document.querySelector('meta[property="og:description"]');
+      if (ogDescTag) {
+        ogDescTag.setAttribute('content', meta.ogDescription || meta.description);
+      }
+    }
+
+    // 3. Meta Keywords
+    if (meta.keywords) {
+      const keywordsTag = document.querySelector('meta[name="keywords"]');
+      if (keywordsTag) {
+        keywordsTag.setAttribute('content', meta.keywords);
+      }
+    }
+
+    // 4. OG Title
+    const ogTitleTag = document.querySelector('meta[property="og:title"]');
+    if (ogTitleTag) {
+      ogTitleTag.setAttribute('content', meta.ogTitle || meta.title);
+    }
+
+    // 5. Dynamic Favicon
+    if (meta.faviconUrl && meta.faviconUrl.trim().length > 0) {
+      let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.href = meta.faviconUrl;
+    }
+
+    // 6. Secondary Accent CSS variables
+    const accent = data.secondaryAccent || '#c084fc';
+    document.documentElement.style.setProperty('--accent-color', accent);
+    document.documentElement.style.setProperty('--accent-glow', `${accent}40`);
+  }, [data.metaData, data.secondaryAccent]);
+
   const resetToDefault = () => {
     setData(PORTFOLIO_DATA as PortfolioData);
     localStorage.removeItem(STORAGE_KEY);
@@ -210,6 +309,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updatePersonalInterests,
         updateReferences,
         updateSectionTitles,
+        updateMetaData,
+        updateSecondaryAccent,
         resetToDefault,
       }}
     >

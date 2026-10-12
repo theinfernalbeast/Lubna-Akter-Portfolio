@@ -47,9 +47,12 @@ export interface ExtraCurricularItem {
 export interface EducationItem {
   discipline: string;
   institution: string;
-  yearStatus: string;
+  institutionUrl?: string;
+  timeline: string;
+  location: string;
   result: string;
   badge?: string;
+  group?: string;
 }
 
 export interface ReferenceItem {
@@ -145,39 +148,54 @@ export const PORTFOLIO_DATA = {
   // Complete educational qualifications from the official uploaded document
   education: [
     {
-      discipline: 'B. Pharm (Bachelor of Pharmacy)',
+      discipline: 'Bachelor of Pharmacy (B. Pharm)',
       institution: 'University of Information Technology & Sciences (UITS)',
-      yearStatus: '4th Year (In Progress) | Dhaka, Bangladesh',
+      institutionUrl: 'https://uits.edu.bd',
+      timeline: '4th Year (In Progress)',
+      location: 'Dhaka, Bangladesh',
       result: '3.37 / 4.00',
       badge: 'In Progress (4th Year)',
+      group: 'Faculty of Pharmacy',
     },
     {
-      discipline: 'HSC - Science (Higher Secondary)',
+      discipline: 'Higher Secondary Certificate (HSC)',
       institution: 'Govt. Kalachandpur High School and College',
-      yearStatus: '2021 | Dhaka, Bangladesh',
+      institutionUrl: 'https://www.facebook.com/kalachandpurcollege',
+      timeline: '2021',
+      location: 'Dhaka, Bangladesh',
       result: '5.00 / 5.00',
       badge: 'GPA 5.00',
+      group: 'Science Group',
     },
     {
-      discipline: 'SSC - Science (Secondary School)',
+      discipline: 'Secondary School Certificate (SSC)',
       institution: 'Khilbarirtek Islamia High School',
-      yearStatus: '2019 | Dhaka, Bangladesh',
+      institutionUrl: 'https://www.facebook.com/p/Khilbarirtek-Islamia-High-School-100057434509700/',
+      timeline: '2019',
+      location: 'Dhaka, Bangladesh',
       result: '4.56 / 5.00',
       badge: 'GPA 4.56',
+      group: 'Science Group',
     },
     {
       discipline: 'Junior School Certificate (JSC)',
       institution: 'Khilbarirtek Islamia High School',
-      yearStatus: '2016 | Dhaka, Bangladesh',
+      institutionUrl: 'https://www.facebook.com/p/Khilbarirtek-Islamia-High-School-100057434509700/',
+      timeline: '2016',
+      location: 'Dhaka, Bangladesh',
       result: '5.00 / 5.00',
       badge: 'GPA 5.00',
+      group: '',
     },
     {
       discipline: 'Primary School Certificate (PSC)',
-      institution: 'Khilbarirtek Islamia High School',
-      yearStatus: '2013 | Dhaka, Bangladesh',
+      institution: 'Govt. Primary School',
+      institutionUrl: 'https://www.facebook.com',
+      timeline: '2013',
+      location: 'Dhaka, Bangladesh',
       result: '5.00 / 5.00',
       badge: 'GPA 5.00',
+      group: '',
     },
   ],
 

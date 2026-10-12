@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { usePortfolio } from '../context/PortfolioContext';
+import { usePortfolio, DEFAULT_META_DATA, MetaDataConfig } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
 import { PORTFOLIO_DATA } from '../data/portfolioData';
 import { 
-  X, User, Award, BookOpen, Briefcase, GraduationCap, Heart, 
-  Settings, Save, RotateCcw, Download, Upload, Plus, Trash2, CheckCircle2, Lock, Image as ImageIcon, Type, UserCheck, Languages, Building2, Calendar, MapPin, Link 
+  X, User, Sliders, BookOpen, Award, Briefcase, Languages, Heart, UserCheck, 
+  Mail, Share2, Type, Settings, Save, RotateCcw, Download, Upload, Plus, 
+  Trash2, CheckCircle2, Image as ImageIcon, ChevronLeft, ChevronRight, 
+  Building2, Calendar, MapPin, Link as LinkIcon, FileText, Check, ShieldCheck,
+  Globe, Palette, Sparkles
 } from 'lucide-react';
 import { TrafficChart } from './TrafficChart';
 
@@ -13,15 +16,43 @@ interface AdminDashboardProps {
   onClose: () => void;
 }
 
+type TabId = 
+  | 'profile' 
+  | 'header' 
+  | 'research' 
+  | 'skills' 
+  | 'experience' 
+  | 'language' 
+  | 'interests' 
+  | 'reference' 
+  | 'contact' 
+  | 'footer' 
+  | 'sections' 
+  | 'metadata'
+  | 'settings';
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose }) => {
-  const { data, updateProfile, updateCoreCompetencies, updateSoftSkills, updateComputerLiteracy, 
-          updateEducation, updateResearchProjects, updateCertifications, updateWorkExperience, 
-          updateEntrepreneurial, updateExtraCurricular, updateAffiliations, updatePersonalDetails, updateLanguages, updatePersonalInterests, 
-          updateReferences, updateSectionTitles, updateSkillProficiency, resetToDefault } = usePortfolio();
+  const { 
+    data, updateProfile, updateCoreCompetencies, updateSoftSkills, updateComputerLiteracy, 
+    updateEducation, updateResearchProjects, updateCertifications, updateWorkExperience, 
+    updateEntrepreneurial, updateExtraCurricular, updateAffiliations, updatePersonalDetails, 
+    updateLanguages, updatePersonalInterests, updateReferences, updateSectionTitles,
+    updateMetaData, updateSecondaryAccent, resetToDefault 
+  } = usePortfolio();
   
   const { isClinical } = useTheme();
-  const [activeTab, setActiveTab] = useState<'profile' | 'skills' | 'education' | 'research' | 'experience' | 'languages' | 'interests' | 'references' | 'titles' | 'settings'>('profile');
-  const [successMessage, setSuccessMessage] = useState('');
+  
+  // Sorted strictly according to user's specification:
+  // Profile > Header > Research > Skills > Experience > Language > Interests > Reference > Contact > Footer > Sections > Metadata > Settings
+  const [activeTab, setActiveTab] = useState<TabId>('profile');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => 
+    typeof window !== 'undefined' ? window.innerWidth < 640 : false
+  );
+  const [successMessage, setSuccessMessage] = useState<string>('');
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+
+  // Experience sub-section tab
+  const [expSubTab, setExpSubTab] = useState<'work' | 'ventures' | 'certs' | 'voluntary' | 'education'>('work');
 
   // Local editing states
   const [profile, setProfile] = useState(data.profile);
@@ -39,16 +70,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
   const [certs, setCerts] = useState([...data.certifications]);
   const [affiliations, setAffiliations] = useState([...(data.affiliations || [])]);
   const [sectionTitles, setSectionTitles] = useState({ ...data.sectionTitles });
-  const [skillProficiency, setSkillProficiency] = useState(data.skillProficiency || [
-    { subject: 'Pharmacology', A: 90 },
-    { subject: 'Drug Design', A: 85 },
-    { subject: 'Medical Writing', A: 80 },
-  ]);
+  const [metaData, setMetaData] = useState<MetaDataConfig>(data.metaData || DEFAULT_META_DATA);
+  const [secondaryAccent, setSecondaryAccent] = useState<string>(data.secondaryAccent || '#c084fc');
 
   // Password change state
   const [newAdminPwd, setNewAdminPwd] = useState('');
-  const [pwdMsg, setPwdMsg] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
 
   if (!isOpen) return null;
 
@@ -74,10 +100,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
     updateCertifications(certs);
     updateAffiliations(affiliations);
     updateSectionTitles(sectionTitles);
-    updateSkillProficiency(skillProficiency);
-    await new Promise(resolve => setTimeout(resolve, 800)); // Simulating a small delay
+    updateMetaData(metaData);
+    updateSecondaryAccent(secondaryAccent);
+    await new Promise(resolve => setTimeout(resolve, 600));
     setIsSaving(false);
-    showSuccess('Portfolio content updated and saved successfully!');
+    showSuccess('All changes saved successfully!');
   };
 
   const handleExportJSON = () => {
@@ -88,7 +115,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
-    showSuccess('Portfolio JSON exported successfully!');
+    showSuccess('Portfolio backup exported as JSON!');
   };
 
   const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,285 +158,1430 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
           } else {
             alert('Invalid portfolio backup file format.');
           }
-        } catch (err) {
-          alert('Error parsing JSON file.');
+        } catch {
+          alert('Error parsing JSON backup file.');
         }
       };
     }
   };
 
+  // Nav menu items sorted strictly by portfolio flow:
+  const menuItems: { id: TabId; label: string; icon: React.FC<{ className?: string }> }[] = [
+    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'header', label: 'Header', icon: Sliders },
+    { id: 'research', label: 'Research', icon: BookOpen },
+    { id: 'skills', label: 'Skills', icon: Award },
+    { id: 'experience', label: 'Experience', icon: Briefcase },
+    { id: 'language', label: 'Language', icon: Languages },
+    { id: 'interests', label: 'Interests', icon: Heart },
+    { id: 'reference', label: 'Reference', icon: UserCheck },
+    { id: 'contact', label: 'Contact', icon: Mail },
+    { id: 'footer', label: 'Footer', icon: Share2 },
+    { id: 'sections', label: 'Sections', icon: Type },
+    { id: 'metadata', label: 'Metadata', icon: Globe },
+    { id: 'settings', label: 'Settings', icon: Settings },
+  ];
+
+  const activeAccent = secondaryAccent || data.secondaryAccent || '#c084fc';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-      <div className={`relative w-full max-w-6xl max-h-[90vh] flex flex-col rounded-3xl shadow-2xl border ${
-        isClinical ? 'bg-white text-slate-800 border-purple-200' : 'bg-slate-900/95 backdrop-blur-xl text-slate-100 border-purple-500/30'
-      }`}>
-        {/* Header */}
-        <div className={`flex items-center justify-between p-6 border-b ${isClinical ? 'border-slate-200 bg-white' : 'border-purple-500/20 bg-slate-950/50'}`}>
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-900/20">
-              <Settings className="w-6 h-6 animate-spin-slow" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-1.5 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md overflow-hidden">
+      <div
+        className={`relative w-full max-w-6xl h-[96vh] sm:h-[92vh] flex flex-col rounded-2xl sm:rounded-3xl shadow-2xl border overflow-hidden ${
+          isClinical ? 'bg-white text-slate-800 border-purple-200' : 'bg-slate-900/95 backdrop-blur-xl text-slate-100 border-purple-500/30'
+        }`}
+        style={{ borderColor: `${activeAccent}50` }}
+      >
+        
+        {/* Simple Clean Header: Only "Portfolio Dashboard" as requested */}
+        <div className={`flex items-center justify-between px-3.5 sm:px-6 py-3 sm:py-4 border-b shrink-0 ${
+          isClinical ? 'border-slate-200 bg-slate-50/80' : 'border-purple-500/20 bg-slate-950/80'
+        }`}>
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-white shadow-md"
+              style={{ background: `linear-gradient(135deg, #7c3aed, ${activeAccent})` }}
+            >
+              <Sliders className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <h2 className="text-2xl font-bold text-white tracking-tight">
-                Portfolio Dashboard
-              </h2>
-            </div>
+            <h2 className="text-lg sm:text-2xl font-bold tracking-tight text-white">
+              Portfolio Dashboard
+            </h2>
           </div>
-          
-          <div className="flex items-center gap-3">
+
+          <div className="flex items-center gap-2 sm:gap-3">
             {successMessage && (
-              <span className="hidden sm:flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                <CheckCircle2 className="w-4 h-4" /> {successMessage}
+              <span className="hidden md:flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 animate-pulse">
+                <CheckCircle2 className="w-3.5 h-3.5" /> {successMessage}
               </span>
             )}
             <button
-              onClick={handleSaveAll}
-              disabled={isSaving}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold shadow-lg transition-all text-sm ${
-                isSaving 
-                  ? 'bg-slate-600 text-slate-300 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:scale-105 hover:shadow-purple-600/40'
-              }`}
-            >
-              <Save className={`w-4 h-4 ${isSaving ? 'animate-spin' : ''}`} /> 
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </button>
-            <button
               onClick={onClose}
-              className={`p-2 rounded-xl border transition-colors ${isClinical ? 'border-slate-200 hover:bg-slate-100' : 'border-slate-700 hover:bg-slate-800'}`}
+              className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                isClinical ? 'border-slate-200 hover:bg-slate-100 text-slate-600' : 'border-slate-700 hover:bg-slate-800 text-slate-300'
+              }`}
               aria-label="Close"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
 
-        {successMessage && (
-          <div className="sm:hidden flex items-center justify-center gap-1.5 text-xs font-semibold p-2 bg-emerald-500/10 text-emerald-500 border-b border-emerald-500/20">
-            <CheckCircle2 className="w-4 h-4" /> {successMessage}
-          </div>
-        )}
-
-        {/* Navigation Tabs */}
-        <div className={`flex overflow-x-auto gap-2 p-3 border-b scrollbar-none ${isClinical ? 'border-slate-100 bg-slate-50' : 'border-slate-800 bg-slate-950/50'}`}>
-          {[
-            { id: 'profile', label: 'Identity & Links', icon: User },
-            { id: 'experience', label: 'Work & Leadership', icon: Briefcase },
-            { id: 'education', label: 'Education & Certs', icon: GraduationCap },
-            { id: 'research', label: 'Research & Projects', icon: BookOpen },
-            { id: 'skills', label: 'Expertise & Tools', icon: Award },
-            { id: 'languages', label: 'Languages', icon: Languages },
-            { id: 'interests', label: 'Interests', icon: Heart },
-            { id: 'references', label: 'References', icon: UserCheck },
-            { id: 'titles', label: 'Labels', icon: Type },
-            { id: 'settings', label: 'Configuration', icon: Settings },
-          ].map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
+        {/* Main Body with Sideways Sidebar Menu & Content Area */}
+        <div className="flex-1 flex overflow-hidden">
+          
+          {/* Sideways Menu: Collapsible with icons & names */}
+          <aside className={`flex flex-col border-r transition-all duration-300 shrink-0 select-none ${
+            isSidebarCollapsed ? 'w-14 sm:w-18' : 'w-48 sm:w-60'
+          } ${
+            isClinical ? 'border-slate-200 bg-slate-50/70' : 'border-purple-500/15 bg-slate-950/70'
+          }`}>
+            {/* Sidebar Toggle Minimize/Expand Button */}
+            <div className="p-2 sm:p-3 border-b flex items-center justify-between border-inherit">
+              {!isSidebarCollapsed && (
+                <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-wider text-purple-400 font-semibold px-2">
+                  Navigation
+                </span>
+              )}
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all duration-200 ${
-                  isActive
-                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
-                    : isClinical
-                    ? 'hover:bg-slate-200 text-slate-600'
-                    : 'hover:bg-slate-800 text-slate-400 hover:text-slate-200'
+                type="button"
+                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                title={isSidebarCollapsed ? 'Expand Menu' : 'Minimize Menu'}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-purple-600/20 transition-colors mx-auto cursor-pointer"
+              >
+                {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+              </button>
+            </div>
+
+            {/* Menu List */}
+            <div className="flex-1 overflow-y-auto py-2 px-1.5 sm:px-2 space-y-1 scrollbar-none">
+              {menuItems.map(item => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id)}
+                    title={item.label}
+                    style={{
+                      background: isActive ? `linear-gradient(135deg, #7c3aed, ${activeAccent})` : undefined,
+                    }}
+                    className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-start'} gap-2.5 sm:gap-3 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all cursor-pointer group ${
+                      isActive
+                        ? 'text-white shadow-md shadow-purple-600/30 font-semibold'
+                        : isClinical
+                        ? 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
+                        : 'text-slate-400 hover:bg-slate-900/80 hover:text-slate-200'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-purple-400'}`} />
+                    {!isSidebarCollapsed && (
+                      <span className="truncate">{item.label}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Save Changes Button at the BOTTOM of Sidebar */}
+            <div className="p-2 sm:p-3 border-t border-inherit shrink-0">
+              <button
+                onClick={handleSaveAll}
+                disabled={isSaving}
+                title="Save Changes"
+                style={{
+                  background: isSaving ? undefined : `linear-gradient(135deg, #7c3aed, ${activeAccent})`,
+                }}
+                className={`w-full flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 px-2 sm:px-3 rounded-xl font-bold shadow-lg transition-all text-xs cursor-pointer ${
+                  isSaving
+                    ? 'bg-slate-700 text-slate-300 cursor-not-allowed'
+                    : 'text-white hover:scale-[1.02] hover:shadow-purple-600/40'
                 }`}
               >
-                <Icon className="w-4 h-4" /> {tab.label}
+                <Save className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${isSaving ? 'animate-spin' : ''}`} />
+                {!isSidebarCollapsed && (
+                  <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
+                )}
               </button>
-            );
-          })}
-        </div>
+            </div>
+          </aside>
 
-        {/* Tab Content Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {activeTab === 'profile' && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold border-b pb-2 border-purple-500/20">Profile & Image Customization</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">Full Name</label>
-                  <input
-                    type="text"
-                    value={profile.name}
-                    onChange={e => setProfile({ ...profile, name: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm transition-all duration-200 ${isClinical ? 'bg-white border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20' : 'bg-slate-950 border-slate-700 text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/30'}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">Subtitle / Title</label>
-                  <input
-                    type="text"
-                    value={profile.subtitle}
-                    onChange={e => setProfile({ ...profile, subtitle: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm transition-all duration-200 ${isClinical ? 'bg-white border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20' : 'bg-slate-950 border-slate-700 text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/30'}`}
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">Headline</label>
-                  <input
-                    type="text"
-                    value={profile.headline}
-                    onChange={e => setProfile({ ...profile, headline: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm transition-all duration-200 ${isClinical ? 'bg-white border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20' : 'bg-slate-950 border-slate-700 text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/30'}`}
-                  />
-                </div>
-                <div className="md:col-span-2 p-4 rounded-xl border bg-slate-950/60 border-purple-500/30">
-                  <label className="block text-xs font-semibold mb-1 text-purple-400 flex items-center gap-1.5">
-                    <Upload className="w-4 h-4 text-purple-400" /> Upload Updated CV / Resume (PDF) from PC or Device
-                  </label>
-                  <p className="text-[11px] text-slate-400 mb-2">Whenever you update your CV, upload it here so visitors can download your latest CV instantly.</p>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx"
-                      onChange={e => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            const base64Str = event.target?.result as string;
-                            setProfile({ ...profile, customCvUrl: base64Str, customCvName: file.name });
-                            showSuccess(`CV "${file.name}" uploaded successfully!`);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      className="text-xs text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700 cursor-pointer"
-                    />
-                    {profile.customCvUrl && (
-                      <span className="text-xs text-emerald-400 font-mono flex items-center gap-1 bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/30">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Latest CV Active ({profile.customCvName || 'Uploaded'})
-                      </span>
-                    )}
-                  </div>
-                </div>
+          {/* Right Content Panel */}
+          <main className="flex-1 flex flex-col overflow-hidden bg-slate-900/40">
+            
+            {/* Scrollable Form Content */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
 
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-semibold mb-1 text-purple-500 flex items-center gap-1.5">
-                    <ImageIcon className="w-4 h-4 text-purple-400" /> Profile Photo (Paste URL or Upload from PC)
-                  </label>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <input
-                      type="text"
-                      value={profile.photoUrl}
-                      onChange={e => setProfile({ ...profile, photoUrl: e.target.value })}
-                      placeholder="Enter image URL..."
-                      className={`flex-1 p-3 rounded-xl border text-sm transition-all duration-200 ${isClinical ? 'bg-white border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20' : 'bg-slate-950 border-slate-700 text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/30'}`}
-                    />
-                    <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 cursor-pointer shrink-0">
-                      <Upload className="w-4 h-4" /> Upload Image
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={e => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              const base64Str = event.target?.result as string;
-                              setProfile({ ...profile, photoUrl: base64Str });
-                              showSuccess('Profile photo uploaded from PC!');
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">Email Address</label>
-                  <input
-                    type="email"
-                    value={profile.email}
-                    onChange={e => setProfile({ ...profile, email: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">Phone Number</label>
-                  <input
-                    type="text"
-                    value={profile.phone}
-                    onChange={e => setProfile({ ...profile, phone: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">WhatsApp Number</label>
-                  <input
-                    type="text"
-                    value={profile.whatsapp}
-                    onChange={e => setProfile({ ...profile, whatsapp: e.target.value, whatsappUrl: `https://wa.me/${e.target.value.replace(/[^0-9]/g, '')}` })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">Location</label>
-                  <input
-                    type="text"
-                    value={profile.location}
-                    onChange={e => setProfile({ ...profile, location: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">LinkedIn Text</label>
-                  <input
-                    type="text"
-                    value={profile.linkedin}
-                    onChange={e => setProfile({ ...profile, linkedin: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">Facebook URL</label>
-                  <input
-                    type="text"
-                    value={profile.facebookUrl}
-                    onChange={e => setProfile({ ...profile, facebookUrl: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">Instagram URL</label>
-                  <input
-                    type="text"
-                    value={profile.instagramUrl}
-                    onChange={e => setProfile({ ...profile, instagramUrl: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">Google Blogger URL</label>
-                  <input
-                    type="text"
-                    value={profile.bloggerUrl || ''}
-                    onChange={e => setProfile({ ...profile, bloggerUrl: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">LinkedIn URL</label>
-                  <input
-                    type="text"
-                    value={profile.linkedinUrl}
-                    onChange={e => setProfile({ ...profile, linkedinUrl: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
-                  />
-                </div>
-
-                {/* Additional Dynamic Social Media Links */}
-                <div className="md:col-span-2 pt-3 border-t border-purple-500/20">
-                  <div className="flex items-center justify-between mb-2">
+              {/* 1. PROFILE TAB */}
+              {activeTab === 'profile' && (
+                <div className="space-y-6 max-w-4xl mx-auto">
+                  <div className="flex items-center justify-between pb-2 border-b border-purple-500/20">
                     <div>
-                      <h4 className="text-sm font-semibold text-purple-400">Additional Social Media Links</h4>
-                      <p className="text-xs text-slate-400">Add any other social channels (YouTube, GitHub, Medium, Threads, etc.)</p>
+                      <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        <User className="w-5 h-5 text-purple-400" /> Profile Identity & Media
+                      </h3>
+                      <p className="text-xs text-slate-400">Manage personal identification, profile photo, and downloadable CV.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Full Name</label>
+                      <input
+                        type="text"
+                        value={profile.name}
+                        onChange={e => setProfile({ ...profile, name: e.target.value })}
+                        className="w-full p-3 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Subtitle / Academic Status</label>
+                      <input
+                        type="text"
+                        value={profile.subtitle}
+                        onChange={e => setProfile({ ...profile, subtitle: e.target.value })}
+                        className="w-full p-3 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Professional Headline</label>
+                      <input
+                        type="text"
+                        value={profile.headline}
+                        onChange={e => setProfile({ ...profile, headline: e.target.value })}
+                        className="w-full p-3 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                      />
+                    </div>
+
+                    {/* Uploadable Profile Picture from PC */}
+                    <div className="md:col-span-2 p-4 rounded-2xl border border-purple-500/30 bg-slate-950/70 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <label className="text-xs font-semibold text-purple-400 flex items-center gap-1.5">
+                            <ImageIcon className="w-4 h-4" /> Profile Picture (Upload from PC or URL)
+                          </label>
+                          <p className="text-[11px] text-slate-400">Upload a fresh photo directly from your computer or enter an image link.</p>
+                        </div>
+                        {profile.photoUrl && (
+                          <div className="w-12 h-12 rounded-xl overflow-hidden border border-purple-400 shadow-md">
+                            <img src={profile.photoUrl} alt="Preview" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <input
+                          type="text"
+                          value={profile.photoUrl}
+                          onChange={e => setProfile({ ...profile, photoUrl: e.target.value })}
+                          placeholder="Paste image URL or use PC upload button..."
+                          className="flex-1 p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white"
+                        />
+                        <label className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold cursor-pointer shrink-0 transition-colors shadow-md">
+                          <Upload className="w-4 h-4" /> Upload from PC
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={e => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                  const base64Str = event.target?.result as string;
+                                  setProfile({ ...profile, photoUrl: base64Str });
+                                  showSuccess('Profile photo uploaded from PC!');
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Uploadable Latest CV from PC */}
+                    <div className="md:col-span-2 p-4 rounded-2xl border border-purple-500/30 bg-slate-950/70 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <label className="text-xs font-semibold text-purple-400 flex items-center gap-1.5">
+                            <FileText className="w-4 h-4" /> Latest CV / Resume (Upload from PC)
+                          </label>
+                          <p className="text-[11px] text-slate-400">Upload your updated resume (.pdf, .doc, .docx) for instant visitor downloads.</p>
+                        </div>
+                        {profile.customCvUrl && (
+                          <span className="text-xs text-emerald-400 font-mono flex items-center gap-1 bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/30">
+                            <Check className="w-3.5 h-3.5" /> {profile.customCvName || 'Latest CV Active'}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx"
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                const base64Str = event.target?.result as string;
+                                setProfile({ ...profile, customCvUrl: base64Str, customCvName: file.name });
+                                showSuccess(`CV "${file.name}" uploaded successfully from PC!`);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="text-xs text-slate-300 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700 cursor-pointer"
+                        />
+                        {profile.customCvUrl && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProfile({ ...profile, customCvUrl: undefined, customCvName: undefined });
+                              showSuccess('Restored default official CV.');
+                            }}
+                            className="text-xs text-red-400 hover:text-red-300 px-3 py-1.5 rounded-lg border border-red-500/30"
+                          >
+                            Reset to Default CV
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Professional Bio & Career Objective</label>
+                      <textarea
+                        rows={4}
+                        value={profile.summary}
+                        onChange={e => setProfile({ ...profile, summary: e.target.value })}
+                        className="w-full p-3 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 2. HEADER TAB */}
+              {activeTab === 'header' && (
+                <div className="space-y-6 max-w-4xl mx-auto">
+                  <div className="pb-2 border-b border-purple-500/20">
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                      <Sliders className="w-5 h-5 text-purple-400" /> Hero & Header Presentation
+                    </h3>
+                    <p className="text-xs text-slate-400">Control the greeting, sub-tagline, and primary hero call-to-actions.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Hero Subtitle Badge</label>
+                      <input
+                        type="text"
+                        value={profile.subtitle}
+                        onChange={e => setProfile({ ...profile, subtitle: e.target.value })}
+                        className="w-full p-3 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Hero Name Display</label>
+                      <input
+                        type="text"
+                        value={profile.name}
+                        onChange={e => setProfile({ ...profile, name: e.target.value })}
+                        className="w-full p-3 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Hero Headline Stream</label>
+                      <input
+                        type="text"
+                        value={profile.headline}
+                        onChange={e => setProfile({ ...profile, headline: e.target.value })}
+                        className="w-full p-3 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2 p-4 rounded-xl bg-purple-950/20 border border-purple-500/20">
+                      <h4 className="text-xs font-bold text-purple-300 uppercase tracking-wider mb-2">Call to Action Buttons</h4>
+                      <p className="text-xs text-slate-400">
+                        Button 1 downloads your active CV. Button 2 scrolls down seamlessly to the Contact section.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. RESEARCH TAB */}
+              {activeTab === 'research' && (
+                <div className="space-y-6 max-w-4xl mx-auto">
+                  <div className="flex items-center justify-between pb-2 border-b border-purple-500/20">
+                    <div>
+                      <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        <BookOpen className="w-5 h-5 text-purple-400" /> Pharmaceutical Research & Presentations
+                      </h3>
+                      <p className="text-xs text-slate-400">Manage research studies, upload images from your PC, and edit analytical bullet points.</p>
+                    </div>
+                    <button
+                      onClick={() => setResearchProjects([
+                        ...researchProjects, 
+                        { 
+                          id: 'proj-' + Date.now(), 
+                          title: 'New Research Investigation', 
+                          role: 'Lead Researcher', 
+                          status: 'Ongoing', 
+                          institution: 'UITS', 
+                          description: 'Comprehensive pharmacological study.', 
+                          highlights: ['Key analytical finding'], 
+                          scientificDetails: 'Pharmacological mechanism and biochemical pathways.', 
+                          image: '' 
+                        }
+                      ])}
+                      className="flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold cursor-pointer shadow-md"
+                    >
+                      <Plus className="w-4 h-4" /> Add Project
+                    </button>
+                  </div>
+
+                  <div className="space-y-6">
+                    {researchProjects.map((proj, index) => (
+                      <div key={proj.id || index} className="p-5 rounded-2xl border border-purple-500/30 bg-slate-950/70 space-y-4 relative">
+                        <div className="flex items-center justify-between pb-2 border-b border-purple-500/10">
+                          <span className="text-xs font-mono font-bold text-purple-400">
+                            Project #{index + 1}: {proj.title || 'Untitled Project'}
+                          </span>
+                          <button
+                            onClick={() => setResearchProjects(researchProjects.filter((_, i) => i !== index))}
+                            className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg cursor-pointer transition-colors"
+                            title="Delete Project"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold mb-1 text-purple-400">Project Title</label>
+                            <input
+                              type="text"
+                              value={proj.title}
+                              onChange={e => {
+                                const updated = [...researchProjects];
+                                updated[index].title = e.target.value;
+                                setResearchProjects(updated);
+                              }}
+                              className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white"
+                            />
+                          </div>
+
+                          {/* Research Project Image Upload from PC */}
+                          <div className="md:col-span-2 p-3 rounded-xl border border-purple-500/20 bg-slate-900/60 space-y-2">
+                            <label className="text-xs font-semibold text-purple-400 flex items-center gap-1.5">
+                              <ImageIcon className="w-4 h-4" /> Project Image (Upload from PC or Paste URL)
+                            </label>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <input
+                                type="text"
+                                value={proj.image}
+                                onChange={e => {
+                                  const updated = [...researchProjects];
+                                  updated[index].image = e.target.value;
+                                  setResearchProjects(updated);
+                                }}
+                                placeholder="Paste image link or choose file from PC..."
+                                className="flex-1 p-2 rounded-lg border text-xs bg-slate-950 border-slate-700 text-white"
+                              />
+                              <label className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold cursor-pointer shrink-0">
+                                <Upload className="w-3.5 h-3.5" /> Upload from PC
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={e => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      const reader = new FileReader();
+                                      reader.onload = (event) => {
+                                        const base64Str = event.target?.result as string;
+                                        const updated = [...researchProjects];
+                                        updated[index].image = base64Str;
+                                        setResearchProjects(updated);
+                                        showSuccess('Project image uploaded from PC!');
+                                      };
+                                      reader.readAsDataURL(file);
+                                    }
+                                  }}
+                                  className="hidden"
+                                />
+                              </label>
+                            </div>
+                            {proj.image && (
+                              <div className="mt-2 w-28 h-20 rounded-lg overflow-hidden border border-purple-400/40">
+                                <img src={proj.image} alt="Preview" className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold mb-1 text-purple-400">Role</label>
+                            <input
+                              type="text"
+                              value={proj.role}
+                              onChange={e => {
+                                const updated = [...researchProjects];
+                                updated[index].role = e.target.value;
+                                setResearchProjects(updated);
+                              }}
+                              className="w-full p-2 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold mb-1 text-purple-400">Status</label>
+                            <input
+                              type="text"
+                              value={proj.status}
+                              onChange={e => {
+                                const updated = [...researchProjects];
+                                updated[index].status = e.target.value;
+                                setResearchProjects(updated);
+                              }}
+                              className="w-full p-2 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white"
+                            />
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold mb-1 text-purple-400">Description</label>
+                            <textarea
+                              rows={2}
+                              value={proj.description}
+                              onChange={e => {
+                                const updated = [...researchProjects];
+                                updated[index].description = e.target.value;
+                                setResearchProjects(updated);
+                              }}
+                              className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white"
+                            />
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold mb-1 text-purple-400">Scientific Context</label>
+                            <textarea
+                              rows={2}
+                              value={proj.scientificDetails || ''}
+                              onChange={e => {
+                                const updated = [...researchProjects];
+                                updated[index].scientificDetails = e.target.value;
+                                setResearchProjects(updated);
+                              }}
+                              className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white"
+                            />
+                          </div>
+
+                          {/* Bullet points for research */}
+                          <div className="md:col-span-2 space-y-2 pt-2 border-t border-purple-500/20">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-semibold text-purple-300">Methodology Bullet Points</label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = [...researchProjects];
+                                  updated[index].highlights = [...(updated[index].highlights || []), 'New analytical methodology point'];
+                                  setResearchProjects(updated);
+                                }}
+                                className="text-xs px-2.5 py-1 rounded-lg bg-purple-600/80 hover:bg-purple-600 text-white flex items-center gap-1 cursor-pointer"
+                              >
+                                <Plus className="w-3 h-3" /> Add Bullet Point
+                              </button>
+                            </div>
+                            {(proj.highlights || []).map((hl, hlIdx) => (
+                              <div key={hlIdx} className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={hl}
+                                  onChange={e => {
+                                    const updated = [...researchProjects];
+                                    const hls = [...(updated[index].highlights || [])];
+                                    hls[hlIdx] = e.target.value;
+                                    updated[index].highlights = hls;
+                                    setResearchProjects(updated);
+                                  }}
+                                  className="flex-1 p-2 rounded-lg border text-xs bg-slate-900 border-slate-700 text-white"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = [...researchProjects];
+                                    updated[index].highlights = (updated[index].highlights || []).filter((_, i) => i !== hlIdx);
+                                    setResearchProjects(updated);
+                                  }}
+                                  className="p-1.5 text-red-400 hover:bg-red-500/10 rounded"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 4. SKILLS TAB */}
+              {activeTab === 'skills' && (
+                <div className="space-y-6 max-w-4xl mx-auto">
+                  <div className="pb-2 border-b border-purple-500/20">
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                      <Award className="w-5 h-5 text-purple-400" /> Technical Skills & Competencies
+                    </h3>
+                    <p className="text-xs text-slate-400">Manage pharmaceutical knowledge, leadership soft skills, and computational research tools.</p>
+                  </div>
+
+                  {/* 1. Core Competencies */}
+                  <div className="p-5 rounded-2xl border border-purple-500/30 bg-slate-950/70 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-semibold text-purple-300">Pharmaceutical Knowledge (Core Competencies)</h4>
+                      <button
+                        onClick={() => setCoreComps([...coreComps, 'New Competency'])}
+                        className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Add
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {coreComps.map((comp, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={comp}
+                            onChange={e => {
+                              const updated = [...coreComps];
+                              updated[idx] = e.target.value;
+                              setCoreComps(updated);
+                            }}
+                            className="flex-1 p-2 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white"
+                          />
+                          <button
+                            onClick={() => setCoreComps(coreComps.filter((_, i) => i !== idx))}
+                            className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 2. Soft Skills */}
+                  <div className="p-5 rounded-2xl border border-purple-500/30 bg-slate-950/70 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-semibold text-indigo-300">Soft Skills & Leadership</h4>
+                      <button
+                        onClick={() => setSoftSkills([...softSkills, 'New Soft Skill'])}
+                        className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Add
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {softSkills.map((skill, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={skill}
+                            onChange={e => {
+                              const updated = [...softSkills];
+                              updated[idx] = e.target.value;
+                              setSoftSkills(updated);
+                            }}
+                            className="flex-1 p-2 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white"
+                          />
+                          <button
+                            onClick={() => setSoftSkills(softSkills.filter((_, i) => i !== idx))}
+                            className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 3. Computer Literacy */}
+                  <div className="p-5 rounded-2xl border border-purple-500/30 bg-slate-950/70 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-semibold text-pink-300">Computer Literacy & Research Tools</h4>
+                      <button
+                        onClick={() => setComputerTools([...computerTools, 'New Tool'])}
+                        className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-pink-600 text-white hover:bg-pink-700"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Add
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {computerTools.map((tool, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={tool}
+                            onChange={e => {
+                              const updated = [...computerTools];
+                              updated[idx] = e.target.value;
+                              setComputerTools(updated);
+                            }}
+                            className="flex-1 p-2 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white"
+                          />
+                          <button
+                            onClick={() => setComputerTools(computerTools.filter((_, i) => i !== idx))}
+                            className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 5. EXPERIENCE TAB (Work, Entrepreneurial, Certifications, Voluntary, Education) */}
+              {activeTab === 'experience' && (
+                <div className="space-y-6 max-w-4xl mx-auto">
+                  <div className="pb-2 border-b border-purple-500/20">
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                      <Briefcase className="w-5 h-5 text-purple-400" /> Professional Experience & Milestones
+                    </h3>
+                    <p className="text-xs text-slate-400">Complete control over Work Experience, Entrepreneurial Ventures, Certifications, and Affiliations with bullet points.</p>
+                  </div>
+
+                  {/* Sub-tabs for Experience categories */}
+                  <div className="flex flex-wrap gap-2 p-1.5 rounded-2xl bg-slate-950/70 border border-purple-500/20">
+                    {[
+                      { id: 'work', label: `Work Experience (${workExp.length})` },
+                      { id: 'ventures', label: `Entrepreneurial (${entExp.length})` },
+                      { id: 'certs', label: `Certifications (${certs.length})` },
+                      { id: 'voluntary', label: `Affiliations (${affiliations.length})` },
+                      { id: 'education', label: `Education (${education.length})` },
+                    ].map(sub => (
+                      <button
+                        key={sub.id}
+                        onClick={() => setExpSubTab(sub.id as any)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                          expSubTab === sub.id
+                            ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                        }`}
+                      >
+                        {sub.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Work Experience */}
+                  {expSubTab === 'work' && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-purple-300">Clinical & Work Experience Items</h4>
+                        <button
+                          onClick={() => setWorkExp([...workExp, { role: 'Clinical Pharmacist Intern', organization: 'Hospital / Pharmacy', period: '2026', location: 'Dhaka', points: ['Executed drug dispensing and patient counseling.'] }])}
+                          className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl bg-purple-600 text-white hover:bg-purple-700"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Add Experience
+                        </button>
+                      </div>
+
+                      {workExp.map((item, index) => (
+                        <div key={index} className="p-4 rounded-2xl border border-purple-500/25 bg-slate-950/70 space-y-3 relative">
+                          <button
+                            onClick={() => setWorkExp(workExp.filter((_, i) => i !== index))}
+                            className="absolute top-4 right-4 p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-8">
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-purple-400">Role Title</label>
+                              <input type="text" value={item.role} onChange={e => { const u = [...workExp]; u[index].role = e.target.value; setWorkExp(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-purple-400">Organization</label>
+                              <input type="text" value={item.organization} onChange={e => { const u = [...workExp]; u[index].organization = e.target.value; setWorkExp(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-purple-400">Period</label>
+                              <input type="text" value={item.period} onChange={e => { const u = [...workExp]; u[index].period = e.target.value; setWorkExp(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-purple-400">Location</label>
+                              <input type="text" value={item.location || ''} onChange={e => { const u = [...workExp]; u[index].location = e.target.value; setWorkExp(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+
+                            {/* Bullet points for Work */}
+                            <div className="md:col-span-2 space-y-2 pt-2 border-t border-purple-500/15">
+                              <div className="flex items-center justify-between">
+                                <label className="text-xs font-semibold text-purple-300">Bullet Points</label>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const u = [...workExp];
+                                    u[index].points = [...(u[index].points || []), 'New accomplishment point'];
+                                    setWorkExp(u);
+                                  }}
+                                  className="text-xs px-2 py-0.5 rounded bg-purple-600/80 hover:bg-purple-600 text-white flex items-center gap-1"
+                                >
+                                  <Plus className="w-3 h-3" /> Add Bullet Point
+                                </button>
+                              </div>
+                              {(item.points || []).map((pt, pIdx) => (
+                                <div key={pIdx} className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={pt}
+                                    onChange={e => {
+                                      const u = [...workExp];
+                                      u[index].points[pIdx] = e.target.value;
+                                      setWorkExp(u);
+                                    }}
+                                    className="flex-1 p-2 rounded-lg border text-xs bg-slate-900 border-slate-700 text-white"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const u = [...workExp];
+                                      u[index].points = u[index].points.filter((_, i) => i !== pIdx);
+                                      setWorkExp(u);
+                                    }}
+                                    className="p-1.5 text-red-400 hover:bg-red-500/10 rounded"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Entrepreneurial Ventures */}
+                  {expSubTab === 'ventures' && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-indigo-300">Entrepreneurial Ventures</h4>
+                        <button
+                          onClick={() => setEntExp([...entExp, { role: 'Founder & Formulator', organization: 'Cosmetic Venture', period: '2026', location: 'Dhaka', points: ['Engineered skincare cosmetic formulas.'] }])}
+                          className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Add Venture
+                        </button>
+                      </div>
+
+                      {entExp.map((item, index) => (
+                        <div key={index} className="p-4 rounded-2xl border border-indigo-500/25 bg-slate-950/70 space-y-3 relative">
+                          <button
+                            onClick={() => setEntExp(entExp.filter((_, i) => i !== index))}
+                            className="absolute top-4 right-4 p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-8">
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-indigo-400">Role Title</label>
+                              <input type="text" value={item.role} onChange={e => { const u = [...entExp]; u[index].role = e.target.value; setEntExp(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-indigo-400">Venture Name</label>
+                              <input type="text" value={item.organization} onChange={e => { const u = [...entExp]; u[index].organization = e.target.value; setEntExp(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-indigo-400">Period</label>
+                              <input type="text" value={item.period} onChange={e => { const u = [...entExp]; u[index].period = e.target.value; setEntExp(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-indigo-400">Location</label>
+                              <input type="text" value={item.location || ''} onChange={e => { const u = [...entExp]; u[index].location = e.target.value; setEntExp(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+
+                            {/* Bullet points for Ventures */}
+                            <div className="md:col-span-2 space-y-2 pt-2 border-t border-indigo-500/15">
+                              <div className="flex items-center justify-between">
+                                <label className="text-xs font-semibold text-indigo-300">Bullet Points</label>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const u = [...entExp];
+                                    u[index].points = [...(u[index].points || []), 'New venture milestone'];
+                                    setEntExp(u);
+                                  }}
+                                  className="text-xs px-2 py-0.5 rounded bg-indigo-600/80 hover:bg-indigo-600 text-white flex items-center gap-1"
+                                >
+                                  <Plus className="w-3 h-3" /> Add Bullet Point
+                                </button>
+                              </div>
+                              {(item.points || []).map((pt, pIdx) => (
+                                <div key={pIdx} className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={pt}
+                                    onChange={e => {
+                                      const u = [...entExp];
+                                      u[index].points[pIdx] = e.target.value;
+                                      setEntExp(u);
+                                    }}
+                                    className="flex-1 p-2 rounded-lg border text-xs bg-slate-900 border-slate-700 text-white"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const u = [...entExp];
+                                      u[index].points = u[index].points.filter((_, i) => i !== pIdx);
+                                      setEntExp(u);
+                                    }}
+                                    className="p-1.5 text-red-400 hover:bg-red-500/10 rounded"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Courses & Certifications */}
+                  {expSubTab === 'certs' && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-pink-300">Courses & Professional Certifications</h4>
+                        <button
+                          onClick={() => setCerts([...certs, { title: 'New Certification', issuer: 'Accrediting Organization', year: '2026', points: ['Course highlights'] }])}
+                          className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl bg-pink-600 text-white hover:bg-pink-700"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Add Certification
+                        </button>
+                      </div>
+
+                      {certs.map((item, index) => (
+                        <div key={index} className="p-4 rounded-2xl border border-pink-500/25 bg-slate-950/70 space-y-3 relative">
+                          <button
+                            onClick={() => setCerts(certs.filter((_, i) => i !== index))}
+                            className="absolute top-4 right-4 p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-8">
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-pink-400">Certification Title</label>
+                              <input type="text" value={item.title} onChange={e => { const u = [...certs]; u[index].title = e.target.value; setCerts(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-pink-400">Issuer / Organization</label>
+                              <input type="text" value={item.issuer} onChange={e => { const u = [...certs]; u[index].issuer = e.target.value; setCerts(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-pink-400">Year</label>
+                              <input type="text" value={item.year} onChange={e => { const u = [...certs]; u[index].year = e.target.value; setCerts(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-pink-400">Location</label>
+                              <input type="text" value={item.location || ''} onChange={e => { const u = [...certs]; u[index].location = e.target.value; setCerts(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+
+                            {/* Bullet points for Certifications */}
+                            <div className="md:col-span-2 space-y-2 pt-2 border-t border-pink-500/15">
+                              <div className="flex items-center justify-between">
+                                <label className="text-xs font-semibold text-pink-300">Bullet Points</label>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const u = [...certs];
+                                    u[index].points = [...(u[index].points || []), 'New credential highlight'];
+                                    setCerts(u);
+                                  }}
+                                  className="text-xs px-2 py-0.5 rounded bg-pink-600/80 hover:bg-pink-600 text-white flex items-center gap-1"
+                                >
+                                  <Plus className="w-3 h-3" /> Add Bullet Point
+                                </button>
+                              </div>
+                              {(item.points || []).map((pt, pIdx) => (
+                                <div key={pIdx} className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={pt}
+                                    onChange={e => {
+                                      const u = [...certs];
+                                      if (!u[index].points) u[index].points = [];
+                                      u[index].points[pIdx] = e.target.value;
+                                      setCerts(u);
+                                    }}
+                                    className="flex-1 p-2 rounded-lg border text-xs bg-slate-900 border-slate-700 text-white"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const u = [...certs];
+                                      u[index].points = (u[index].points || []).filter((_, i) => i !== pIdx);
+                                      setCerts(u);
+                                    }}
+                                    className="p-1.5 text-red-400 hover:bg-red-500/10 rounded"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Affiliations & Voluntary */}
+                  {expSubTab === 'voluntary' && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-emerald-300">Affiliations & Voluntary Engagements</h4>
+                        <button
+                          onClick={() => setAffiliations([...affiliations, { role: 'Executive Member', organization: 'Pharmacy Society', period: '2026', location: 'Dhaka', points: ['Organized scientific seminars.'] }])}
+                          className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Add Affiliation
+                        </button>
+                      </div>
+
+                      {affiliations.map((item, index) => (
+                        <div key={index} className="p-4 rounded-2xl border border-emerald-500/25 bg-slate-950/70 space-y-3 relative">
+                          <button
+                            onClick={() => setAffiliations(affiliations.filter((_, i) => i !== index))}
+                            className="absolute top-4 right-4 p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-8">
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-emerald-400">Role Title</label>
+                              <input type="text" value={item.role} onChange={e => { const u = [...affiliations]; u[index].role = e.target.value; setAffiliations(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-emerald-400">Organization</label>
+                              <input type="text" value={item.organization} onChange={e => { const u = [...affiliations]; u[index].organization = e.target.value; setAffiliations(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-emerald-400">Period</label>
+                              <input type="text" value={item.period} onChange={e => { const u = [...affiliations]; u[index].period = e.target.value; setAffiliations(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-emerald-400">Location</label>
+                              <input type="text" value={item.location || ''} onChange={e => { const u = [...affiliations]; u[index].location = e.target.value; setAffiliations(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+
+                            {/* Bullet points for Affiliations */}
+                            <div className="md:col-span-2 space-y-2 pt-2 border-t border-emerald-500/15">
+                              <div className="flex items-center justify-between">
+                                <label className="text-xs font-semibold text-emerald-300">Bullet Points</label>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const u = [...affiliations];
+                                    u[index].points = [...(u[index].points || []), 'New voluntary contribution'];
+                                    setAffiliations(u);
+                                  }}
+                                  className="text-xs px-2 py-0.5 rounded bg-emerald-600/80 hover:bg-emerald-600 text-white flex items-center gap-1"
+                                >
+                                  <Plus className="w-3 h-3" /> Add Bullet Point
+                                </button>
+                              </div>
+                              {(item.points || []).map((pt, pIdx) => (
+                                <div key={pIdx} className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={pt}
+                                    onChange={e => {
+                                      const u = [...affiliations];
+                                      if (!u[index].points) u[index].points = [];
+                                      u[index].points[pIdx] = e.target.value;
+                                      setAffiliations(u);
+                                    }}
+                                    className="flex-1 p-2 rounded-lg border text-xs bg-slate-900 border-slate-700 text-white"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const u = [...affiliations];
+                                      u[index].points = (u[index].points || []).filter((_, i) => i !== pIdx);
+                                      setAffiliations(u);
+                                    }}
+                                    className="p-1.5 text-red-400 hover:bg-red-500/10 rounded"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Education Qualifications */}
+                  {expSubTab === 'education' && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-purple-300">Academic Education Qualifications</h4>
+                        <button
+                          onClick={() => setEducation([...education, { discipline: 'Bachelor of Pharmacy (B. Pharm)', institution: 'University of Information Technology & Sciences (UITS)', timeline: '2026 (Final Year)', location: 'Dhaka, Bangladesh', result: 'CGPA 3.85', badge: 'Honors', group: 'Faculty of Pharmacy' }])}
+                          className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl bg-purple-600 text-white hover:bg-purple-700"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Add Degree
+                        </button>
+                      </div>
+
+                      {education.map((edu, index) => (
+                        <div key={index} className="p-4 rounded-2xl border border-purple-500/25 bg-slate-950/70 space-y-3 relative">
+                          <button
+                            onClick={() => setEducation(education.filter((_, i) => i !== index))}
+                            className="absolute top-4 right-4 p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-8">
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-purple-400">Discipline / Degree</label>
+                              <input type="text" value={edu.discipline} onChange={e => { const u = [...education]; u[index].discipline = e.target.value; setEducation(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-purple-400">Institution</label>
+                              <input type="text" value={edu.institution} onChange={e => { const u = [...education]; u[index].institution = e.target.value; setEducation(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-purple-400">Timeline</label>
+                              <input type="text" value={edu.timeline} onChange={e => { const u = [...education]; u[index].timeline = e.target.value; setEducation(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-purple-400">Location</label>
+                              <input type="text" value={edu.location} onChange={e => { const u = [...education]; u[index].location = e.target.value; setEducation(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-purple-400">Result / Grade</label>
+                              <input type="text" value={edu.result} onChange={e => { const u = [...education]; u[index].result = e.target.value; setEducation(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold mb-1 text-purple-400">Group / Major</label>
+                              <input type="text" value={edu.group || ''} onChange={e => { const u = [...education]; u[index].group = e.target.value; setEducation(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 6. LANGUAGE TAB */}
+              {activeTab === 'language' && (
+                <div className="space-y-6 max-w-4xl mx-auto">
+                  <div className="flex items-center justify-between pb-2 border-b border-purple-500/20">
+                    <div>
+                      <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        <Languages className="w-5 h-5 text-purple-400" /> Language Proficiency
+                      </h3>
+                      <p className="text-xs text-slate-400">Configure language proficiencies with interactive percentage sliders.</p>
+                    </div>
+                    <button
+                      onClick={() => setLanguages([...languages, { id: 'lang-' + Date.now(), language: 'New Language', level: 'Working Proficiency', percentage: 80, description: 'Academic and scientific communication.' }])}
+                      className="flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold cursor-pointer shadow-md"
+                    >
+                      <Plus className="w-4 h-4" /> Add Language
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {languages.map((item, index) => (
+                      <div key={item.id || index} className="p-4 rounded-2xl border border-purple-500/30 bg-slate-950/70 space-y-3 relative">
+                        <div className="flex items-center justify-between pr-2">
+                          <span className="text-xs font-mono font-bold text-purple-400">
+                            {item.language || 'Language'} — {item.percentage}%
+                          </span>
+                          <button
+                            onClick={() => setLanguages(languages.filter((_, i) => i !== index))}
+                            className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-semibold mb-1 text-purple-400">Language Name</label>
+                            <input
+                              type="text"
+                              value={item.language}
+                              onChange={e => {
+                                const u = [...languages];
+                                u[index].language = e.target.value;
+                                setLanguages(u);
+                              }}
+                              className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold mb-1 text-purple-400">Fluency Level</label>
+                            <input
+                              type="text"
+                              value={item.level}
+                              onChange={e => {
+                                const u = [...languages];
+                                u[index].level = e.target.value;
+                                setLanguages(u);
+                              }}
+                              className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white"
+                            />
+                          </div>
+
+                          <div className="md:col-span-2 p-3 rounded-xl bg-purple-950/20 border border-purple-500/20 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-semibold text-purple-300">
+                                Proficiency Percentage: <span className="font-mono font-bold text-purple-200">{item.percentage}%</span>
+                              </label>
+                            </div>
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              value={item.percentage}
+                              onChange={e => {
+                                const u = [...languages];
+                                u[index].percentage = parseInt(e.target.value) || 0;
+                                setLanguages(u);
+                              }}
+                              className="w-full accent-purple-500 cursor-pointer"
+                            />
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold mb-1 text-purple-400">Description</label>
+                            <input
+                              type="text"
+                              value={item.description || ''}
+                              onChange={e => {
+                                const u = [...languages];
+                                u[index].description = e.target.value;
+                                setLanguages(u);
+                              }}
+                              className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 7. INTERESTS TAB */}
+              {activeTab === 'interests' && (
+                <div className="space-y-6 max-w-4xl mx-auto">
+                  <div className="flex items-center justify-between pb-2 border-b border-purple-500/20">
+                    <div>
+                      <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        <Heart className="w-5 h-5 text-purple-400" /> Personal Passions & Creative Pursuits
+                      </h3>
+                      <p className="text-xs text-slate-400">Manage creative interests, hobbies, reflections, and emblem icons.</p>
+                    </div>
+                    <button
+                      onClick={() => setInterests([...interests, { id: 'int-' + Date.now(), title: 'New Interest', category: 'Creative Expression', icon: 'Sparkles', shortDesc: 'Short description.', detailedDesc: 'Detailed exploration and reflection.', keywords: ['Creative', 'Design'] }])}
+                      className="flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold cursor-pointer shadow-md"
+                    >
+                      <Plus className="w-4 h-4" /> Add Interest
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {interests.map((interest, index) => (
+                      <div key={interest.id || index} className="p-4 rounded-2xl border border-purple-500/30 bg-slate-950/70 space-y-3 relative">
+                        <button
+                          onClick={() => setInterests(interests.filter((_, i) => i !== index))}
+                          className="absolute top-4 right-4 p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pr-8">
+                          <div>
+                            <label className="block text-xs font-semibold mb-1 text-purple-400">Title</label>
+                            <input type="text" value={interest.title} onChange={e => { const u = [...interests]; u[index].title = e.target.value; setInterests(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold mb-1 text-purple-400">Category</label>
+                            <input type="text" value={interest.category} onChange={e => { const u = [...interests]; u[index].category = e.target.value; setInterests(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold mb-1 text-purple-400">Icon Emblem</label>
+                            <select value={interest.icon} onChange={e => { const u = [...interests]; u[index].icon = e.target.value; setInterests(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white">
+                              <option value="Compass">Compass (Travel & Adventure)</option>
+                              <option value="Tv">Tv (Anime, Dramas & Stories)</option>
+                              <option value="Sparkles">Sparkles (Cosmetic Art & Glam)</option>
+                              <option value="BookOpen">BookOpen (Journaling & Notes)</option>
+                              <option value="Utensils">Utensils (Food & Chemistry)</option>
+                              <option value="Heart">Heart (Passion & Care)</option>
+                            </select>
+                          </div>
+                          <div className="md:col-span-3">
+                            <label className="block text-xs font-semibold mb-1 text-purple-400">Short Summary</label>
+                            <input type="text" value={interest.shortDesc} onChange={e => { const u = [...interests]; u[index].shortDesc = e.target.value; setInterests(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                          </div>
+                          <div className="md:col-span-3">
+                            <label className="block text-xs font-semibold mb-1 text-purple-400">Detailed Reflection</label>
+                            <textarea rows={2} value={interest.detailedDesc} onChange={e => { const u = [...interests]; u[index].detailedDesc = e.target.value; setInterests(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 8. REFERENCE TAB */}
+              {activeTab === 'reference' && (
+                <div className="space-y-6 max-w-4xl mx-auto">
+                  <div className="flex items-center justify-between pb-2 border-b border-purple-500/20">
+                    <div>
+                      <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        <UserCheck className="w-5 h-5 text-purple-400" /> Academic & Professional References
+                      </h3>
+                      <p className="text-xs text-slate-400">Manage professors and clinical referee recommendations.</p>
+                    </div>
+                    <button
+                      onClick={() => setReferences([...references, { name: 'Dr. Professor Name', institution: 'University of Information Technology & Sciences', title: 'Head of Department', phone: '+880 ...', email: 'ref@uits.edu.bd' }])}
+                      className="flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold cursor-pointer shadow-md"
+                    >
+                      <Plus className="w-4 h-4" /> Add Reference
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {references.map((ref, index) => (
+                      <div key={index} className="p-4 rounded-2xl border border-purple-500/30 bg-slate-950/70 space-y-3 relative">
+                        <button
+                          onClick={() => setReferences(references.filter((_, i) => i !== index))}
+                          className="absolute top-4 right-4 p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-8">
+                          <div>
+                            <label className="block text-xs font-semibold mb-1 text-purple-400">Referee Name</label>
+                            <input type="text" value={ref.name} onChange={e => { const u = [...references]; u[index].name = e.target.value; setReferences(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold mb-1 text-purple-400">Title / Designation</label>
+                            <input type="text" value={ref.title} onChange={e => { const u = [...references]; u[index].title = e.target.value; setReferences(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold mb-1 text-purple-400">Institution / Department</label>
+                            <input type="text" value={ref.institution} onChange={e => { const u = [...references]; u[index].institution = e.target.value; setReferences(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold mb-1 text-purple-400">Phone</label>
+                            <input type="text" value={ref.phone} onChange={e => { const u = [...references]; u[index].phone = e.target.value; setReferences(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold mb-1 text-purple-400">Email Address</label>
+                            <input type="email" value={ref.email} onChange={e => { const u = [...references]; u[index].email = e.target.value; setReferences(u); }} className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 9. CONTACT TAB */}
+              {activeTab === 'contact' && (
+                <div className="space-y-6 max-w-4xl mx-auto">
+                  <div className="pb-2 border-b border-purple-500/20">
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                      <Mail className="w-5 h-5 text-purple-400" /> Contact Details & Reach
+                    </h3>
+                    <p className="text-xs text-slate-400">Configure your direct communication channels and WhatsApp hotline.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Email Address</label>
+                      <input
+                        type="email"
+                        value={profile.email}
+                        onChange={e => setProfile({ ...profile, email: e.target.value })}
+                        className="w-full p-3 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Phone Number</label>
+                      <input
+                        type="text"
+                        value={profile.phone}
+                        onChange={e => setProfile({ ...profile, phone: e.target.value })}
+                        className="w-full p-3 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">WhatsApp Number</label>
+                      <input
+                        type="text"
+                        value={profile.whatsapp}
+                        onChange={e => setProfile({ 
+                          ...profile, 
+                          whatsapp: e.target.value, 
+                          whatsappUrl: `https://wa.me/${e.target.value.replace(/[^0-9]/g, '')}` 
+                        })}
+                        className="w-full p-3 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Physical Location</label>
+                      <input
+                        type="text"
+                        value={profile.location}
+                        onChange={e => setProfile({ ...profile, location: e.target.value })}
+                        className="w-full p-3 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Google Map Query</label>
+                      <input
+                        type="text"
+                        value={profile.mapQuery || ''}
+                        onChange={e => setProfile({ ...profile, mapQuery: e.target.value })}
+                        className="w-full p-3 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 10. FOOTER TAB (Social Media Links) */}
+              {activeTab === 'footer' && (
+                <div className="space-y-6 max-w-4xl mx-auto">
+                  <div className="flex items-center justify-between pb-2 border-b border-purple-500/20">
+                    <div>
+                      <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        <Share2 className="w-5 h-5 text-purple-400" /> Footer & Social Media Channels
+                      </h3>
+                      <p className="text-xs text-slate-400">Edit existing links and add new custom social media platforms to the footer.</p>
                     </div>
                     <button
                       type="button"
@@ -417,1237 +1589,594 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                         const current = profile.customSocialLinks || [];
                         setProfile({
                           ...profile,
-                          customSocialLinks: [...current, { id: 'soc-' + Date.now(), platform: 'New Platform', url: 'https://' }]
+                          customSocialLinks: [...current, { id: 'soc-' + Date.now(), platform: 'New Channel', url: 'https://' }]
                         });
                       }}
-                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl bg-purple-600 text-white hover:bg-purple-700 font-medium cursor-pointer"
+                      className="flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold cursor-pointer shadow-md"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Add Social Media Link
+                      <Plus className="w-4 h-4" /> Add Social Link
                     </button>
                   </div>
 
-                  <div className="space-y-2">
-                    {(profile.customSocialLinks || []).map((link, sIdx) => (
-                      <div key={link.id || sIdx} className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          placeholder="Platform Name (e.g. YouTube)"
-                          value={link.platform}
-                          onChange={e => {
-                            const updated = [...(profile.customSocialLinks || [])];
-                            updated[sIdx] = { ...updated[sIdx], platform: e.target.value };
-                            setProfile({ ...profile, customSocialLinks: updated });
-                          }}
-                          className={`w-1/3 p-2.5 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
-                        />
-                        <input
-                          type="text"
-                          placeholder="URL (https://...)"
-                          value={link.url}
-                          onChange={e => {
-                            const updated = [...(profile.customSocialLinks || [])];
-                            updated[sIdx] = { ...updated[sIdx], url: e.target.value };
-                            setProfile({ ...profile, customSocialLinks: updated });
-                          }}
-                          className={`flex-1 p-2.5 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updated = (profile.customSocialLinks || []).filter((_, i) => i !== sIdx);
-                            setProfile({ ...profile, customSocialLinks: updated });
-                          }}
-                          className="p-2.5 rounded-xl text-red-500 hover:bg-red-500/10 border border-red-500/20"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">Professional Summary Bio</label>
-                  <textarea
-                    rows={4}
-                    value={profile.summary}
-                    onChange={e => setProfile({ ...profile, summary: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'skills' && (
-            <div className="space-y-6">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-semibold">Core Pharmaceutical Competencies</h3>
-                  <button
-                    onClick={() => setCoreComps([...coreComps, 'New Competency'])}
-                    className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add Competency
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {coreComps.map((comp, index) => (
-                    <div key={index} className="flex items-center gap-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">LinkedIn Profile URL</label>
                       <input
                         type="text"
-                        value={comp}
-                        onChange={e => {
-                          const updated = [...coreComps];
-                          updated[index] = e.target.value;
-                          setCoreComps(updated);
-                        }}
-                        className={`flex-1 p-2.5 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
+                        value={profile.linkedinUrl}
+                        onChange={e => setProfile({ ...profile, linkedinUrl: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
                       />
-                      <button
-                        onClick={() => setCoreComps(coreComps.filter((_, i) => i !== index))}
-                        className="p-2.5 rounded-xl text-red-500 hover:bg-red-500/10 border border-red-500/20"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
                     </div>
-                  ))}
-                </div>
-              </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-semibold">Professional Soft Skills</h3>
-                  <button
-                    onClick={() => setSoftSkills([...softSkills, 'New Soft Skill'])}
-                    className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add Soft Skill
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {softSkills.map((skill, index) => (
-                    <div key={index} className="flex items-center gap-2">
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Facebook URL</label>
                       <input
                         type="text"
-                        value={skill}
-                        onChange={e => {
-                          const updated = [...softSkills];
-                          updated[index] = e.target.value;
-                          setSoftSkills(updated);
-                        }}
-                        className={`flex-1 p-2.5 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
+                        value={profile.facebookUrl}
+                        onChange={e => setProfile({ ...profile, facebookUrl: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
                       />
-                      <button
-                        onClick={() => setSoftSkills(softSkills.filter((_, i) => i !== index))}
-                        className="p-2.5 rounded-xl text-red-500 hover:bg-red-500/10 border border-red-500/20"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
                     </div>
-                  ))}
-                </div>
-              </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-semibold">Computer Literacy & Research Tools</h3>
-                  <button
-                    onClick={() => setComputerTools([...computerTools, 'New Tool'])}
-                    className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add Tool
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {computerTools.map((tool, index) => (
-                    <div key={index} className="flex items-center gap-2">
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Instagram URL</label>
                       <input
                         type="text"
-                        value={tool}
-                        onChange={e => {
-                          const updated = [...computerTools];
-                          updated[index] = e.target.value;
-                          setComputerTools(updated);
-                        }}
-                        className={`flex-1 p-2.5 rounded-xl border text-sm ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800 text-white'}`}
+                        value={profile.instagramUrl}
+                        onChange={e => setProfile({ ...profile, instagramUrl: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
                       />
-                      <button
-                        onClick={() => setComputerTools(computerTools.filter((_, i) => i !== index))}
-                        className="p-2.5 rounded-xl text-red-500 hover:bg-red-500/10 border border-red-500/20"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
 
-          {activeTab === 'education' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Educational Qualifications</h3>
-                <button
-                  onClick={() => setEducation([...education, { discipline: 'New Degree', institution: 'Institution Name', yearStatus: '2026', result: 'GPA 5.00', badge: 'GPA 5.00' }])}
-                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add Education
-                </button>
-              </div>
-              <div className="space-y-4">
-                {education.map((edu, index) => (
-                  <div key={index} className={`p-4 rounded-xl border ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'} space-y-3 relative`}>
-                    <button
-                      onClick={() => setEducation(education.filter((_, i) => i !== index))}
-                      className="absolute top-4 right-4 p-2 text-red-500 hover:bg-red-500/10 rounded-lg"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-10">
-                      <div>
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Discipline / Degree</label>
-                        <input
-                          type="text"
-                          value={edu.discipline}
-                          onChange={e => {
-                            const updated = [...education];
-                            updated[index].discipline = e.target.value;
-                            setEducation(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Institution</label>
-                        <input
-                          type="text"
-                          value={edu.institution}
-                          onChange={e => {
-                            const updated = [...education];
-                            updated[index].institution = e.target.value;
-                            setEducation(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Year / Status</label>
-                        <input
-                          type="text"
-                          value={edu.yearStatus}
-                          onChange={e => {
-                            const updated = [...education];
-                            updated[index].yearStatus = e.target.value;
-                            setEducation(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Result / Grade</label>
-                        <input
-                          type="text"
-                          value={edu.result}
-                          onChange={e => {
-                            const updated = [...education];
-                            updated[index].result = e.target.value;
-                            setEducation(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Google Blogger / Blog URL</label>
+                      <input
+                        type="text"
+                        value={profile.bloggerUrl || ''}
+                        onChange={e => setProfile({ ...profile, bloggerUrl: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
+                      />
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {activeTab === 'research' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Research Projects & Image Customization</h3>
-                <button
-                  onClick={() => setResearchProjects([...researchProjects, { id: 'new-' + Date.now(), title: 'New Research Project', role: 'Researcher', status: 'Ongoing', institution: 'UITS', description: 'Description', highlights: ['Highlight 1'], scientificDetails: 'Scientific details', image: '' }])}
-                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add Project
-                </button>
-              </div>
-              <div className="space-y-6">
-                {researchProjects.map((proj, index) => (
-                  <div key={proj.id || index} className={`p-4 rounded-xl border ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'} space-y-3 relative`}>
-                    <button
-                      onClick={() => setResearchProjects(researchProjects.filter((_, i) => i !== index))}
-                      className="absolute top-4 right-4 p-2 text-red-500 hover:bg-red-500/10 rounded-lg"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-10">
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Project Title</label>
-                        <input
-                          type="text"
-                          value={proj.title}
-                          onChange={e => {
-                            const updated = [...researchProjects];
-                            updated[index].title = e.target.value;
-                            setResearchProjects(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-semibold mb-1 text-purple-500 flex items-center gap-1.5">
-                          <ImageIcon className="w-4 h-4 text-purple-400" /> Research Project Image (Paste URL or Upload from Device)
-                        </label>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <input
-                            type="text"
-                            value={proj.image}
-                            onChange={e => {
-                              const updated = [...researchProjects];
-                              updated[index].image = e.target.value;
-                              setResearchProjects(updated);
-                            }}
-                            placeholder="Enter image URL..."
-                            className={`flex-1 p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                          />
-                          <label className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 cursor-pointer shrink-0">
-                            <Upload className="w-3.5 h-3.5" /> Upload Image
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={e => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  const reader = new FileReader();
-                                  reader.onload = (event) => {
-                                    const base64Str = event.target?.result as string;
-                                    const updated = [...researchProjects];
-                                    updated[index].image = base64Str;
-                                    setResearchProjects(updated);
-                                    showSuccess('Project image uploaded from device!');
-                                  };
-                                  reader.readAsDataURL(file);
-                                }
-                              }}
-                              className="hidden"
-                            />
-                          </label>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Role</label>
-                        <input
-                          type="text"
-                          value={proj.role}
-                          onChange={e => {
-                            const updated = [...researchProjects];
-                            updated[index].role = e.target.value;
-                            setResearchProjects(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Status</label>
-                        <input
-                          type="text"
-                          value={proj.status}
-                          onChange={e => {
-                            const updated = [...researchProjects];
-                            updated[index].status = e.target.value;
-                            setResearchProjects(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Description</label>
-                        <textarea
-                          rows={2}
-                          value={proj.description}
-                          onChange={e => {
-                            const updated = [...researchProjects];
-                            updated[index].description = e.target.value;
-                            setResearchProjects(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Pharmacological & Scientific Context</label>
-                        <textarea
-                          rows={2}
-                          value={proj.scientificDetails || ''}
-                          onChange={e => {
-                            const updated = [...researchProjects];
-                            updated[index].scientificDetails = e.target.value;
-                            setResearchProjects(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
-                      <div className="md:col-span-2 space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <label className="block text-xs font-semibold text-purple-500">Key Highlights (Bullet Points)</label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updated = [...researchProjects];
-                              updated[index].highlights = [...(updated[index].highlights || []), 'New analytical highlight'];
-                              setResearchProjects(updated);
-                            }}
-                            className="text-[11px] px-2 py-0.5 rounded bg-purple-600/80 text-white hover:bg-purple-600 flex items-center gap-1"
-                          >
-                            <Plus className="w-3 h-3" /> Add Highlight
-                          </button>
-                        </div>
-                        {(proj.highlights || []).map((hl, hlIdx) => (
-                          <div key={hlIdx} className="flex items-center gap-2">
+                    {/* Custom Social Channels */}
+                    <div className="md:col-span-2 pt-4 border-t border-purple-500/20 space-y-3">
+                      <h4 className="text-xs font-bold text-purple-300 uppercase tracking-wider">
+                        Additional Custom Social Media Channels
+                      </h4>
+                      <div className="space-y-2">
+                        {(profile.customSocialLinks || []).map((link, sIdx) => (
+                          <div key={link.id || sIdx} className="flex items-center gap-2">
                             <input
                               type="text"
-                              value={hl}
+                              placeholder="Platform (e.g. YouTube, GitHub, Medium)"
+                              value={link.platform}
                               onChange={e => {
-                                const updated = [...researchProjects];
-                                const currentHls = [...(updated[index].highlights || [])];
-                                currentHls[hlIdx] = e.target.value;
-                                updated[index].highlights = currentHls;
-                                setResearchProjects(updated);
+                                const u = [...(profile.customSocialLinks || [])];
+                                u[sIdx] = { ...u[sIdx], platform: e.target.value };
+                                setProfile({ ...profile, customSocialLinks: u });
                               }}
-                              className={`flex-1 p-2 rounded-lg border text-xs ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
+                              className="w-1/3 p-2.5 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
+                            />
+                            <input
+                              type="text"
+                              placeholder="URL (https://...)"
+                              value={link.url}
+                              onChange={e => {
+                                const u = [...(profile.customSocialLinks || [])];
+                                u[sIdx] = { ...u[sIdx], url: e.target.value };
+                                setProfile({ ...profile, customSocialLinks: u });
+                              }}
+                              className="flex-1 p-2.5 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
                             />
                             <button
                               type="button"
                               onClick={() => {
-                                const updated = [...researchProjects];
-                                updated[index].highlights = (updated[index].highlights || []).filter((_, i) => i !== hlIdx);
-                                setResearchProjects(updated);
+                                const u = (profile.customSocialLinks || []).filter((_, i) => i !== sIdx);
+                                setProfile({ ...profile, customSocialLinks: u });
                               }}
-                              className="p-1.5 text-red-400 hover:bg-red-500/10 rounded"
+                              className="p-2.5 rounded-xl text-red-500 hover:bg-red-500/10 border border-red-500/20"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         ))}
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'experience' && (
-            <div className="space-y-8">
-              {/* 1. Work Experience */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-purple-400">Work Experience</h3>
-                  <button
-                    onClick={() => setWorkExp([...workExp, { role: 'New Role', organization: 'Company Name', period: '2026', location: 'Dhaka, Bangladesh', points: ['Key accomplishment point'] }])}
-                    className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add Experience
-                  </button>
                 </div>
-                <div className="space-y-4">
-                  {workExp.map((job, index) => (
-                    <div key={index} className={`p-4 rounded-xl border ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'} space-y-3 relative`}>
-                      <button
-                        onClick={() => setWorkExp(workExp.filter((_, i) => i !== index))}
-                        className="absolute top-4 right-4 p-2 text-red-500 hover:bg-red-500/10 rounded-lg"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-10">
-                        <div>
-                          <label className="block text-xs font-semibold mb-1 text-purple-500">Role</label>
-                          <input
-                            type="text"
-                            value={job.role}
-                            onChange={e => {
-                              const updated = [...workExp];
-                              updated[index].role = e.target.value;
-                              setWorkExp(updated);
-                            }}
-                            className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                          />
+              )}
+
+              {/* 11. SECTIONS TAB */}
+              {activeTab === 'sections' && (
+                <div className="space-y-6 max-w-4xl mx-auto">
+                  <div className="pb-2 border-b border-purple-500/20">
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                      <Type className="w-5 h-5 text-purple-400" /> Section Titles & Headings
+                    </h3>
+                    <p className="text-xs text-slate-400">Customize the headings that appear above each section on your portfolio.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Research Section Title</label>
+                      <input
+                        type="text"
+                        value={sectionTitles.research}
+                        onChange={e => setSectionTitles({ ...sectionTitles, research: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Skills Section Title</label>
+                      <input
+                        type="text"
+                        value={sectionTitles.skills}
+                        onChange={e => setSectionTitles({ ...sectionTitles, skills: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Experience Section Title</label>
+                      <input
+                        type="text"
+                        value={sectionTitles.experience}
+                        onChange={e => setSectionTitles({ ...sectionTitles, experience: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Education Section Title</label>
+                      <input
+                        type="text"
+                        value={sectionTitles.education}
+                        onChange={e => setSectionTitles({ ...sectionTitles, education: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Languages Section Title</label>
+                      <input
+                        type="text"
+                        value={sectionTitles.languages || ''}
+                        onChange={e => setSectionTitles({ ...sectionTitles, languages: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Interests Section Title</label>
+                      <input
+                        type="text"
+                        value={sectionTitles.about}
+                        onChange={e => setSectionTitles({ ...sectionTitles, about: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">References Section Title</label>
+                      <input
+                        type="text"
+                        value={sectionTitles.references || ''}
+                        onChange={e => setSectionTitles({ ...sectionTitles, references: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Contact Section Title</label>
+                      <input
+                        type="text"
+                        value={sectionTitles.contact || ''}
+                        onChange={e => setSectionTitles({ ...sectionTitles, contact: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border text-sm bg-slate-950 border-slate-700 text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 12. METADATA & BRAND ACCENT TAB */}
+              {activeTab === 'metadata' && (
+                <div className="space-y-6 max-w-4xl mx-auto">
+                  <div className="pb-2 border-b border-purple-500/20">
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                      <Globe className="w-5 h-5 text-purple-400" /> Page Metadata & Lavender Accent
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Configure search engine optimization (SEO), live browser tab title, favicon, and secondary lavender color accent.
+                    </p>
+                  </div>
+
+                  {/* 1. Live Google Search & Social Preview Card */}
+                  <div className="p-4 sm:p-5 rounded-2xl border border-purple-500/30 bg-slate-950/80 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-mono text-purple-400 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5" /> Google Search Live Preview
+                      </span>
+                      <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                        Live Connected
+                      </span>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl border border-purple-500/20 bg-slate-900/90 space-y-1">
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                        <div className="w-4 h-4 rounded-full bg-purple-500/20 flex items-center justify-center overflow-hidden border border-purple-400/40">
+                          {metaData.faviconUrl ? (
+                            <img src={metaData.faviconUrl} className="w-full h-full object-cover" alt="Favicon" />
+                          ) : (
+                            <Globe className="w-3 h-3 text-purple-300" />
+                          )}
                         </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1 text-purple-500">Organization</label>
-                          <input
-                            type="text"
-                            value={job.organization}
-                            onChange={e => {
-                              const updated = [...workExp];
-                              updated[index].organization = e.target.value;
-                              setWorkExp(updated);
-                            }}
-                            className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1 text-purple-500">Period</label>
-                          <input
-                            type="text"
-                            value={job.period}
-                            onChange={e => {
-                              const updated = [...workExp];
-                              updated[index].period = e.target.value;
-                              setWorkExp(updated);
-                            }}
-                            className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1 text-purple-500">Location</label>
-                          <input
-                            type="text"
-                            value={job.location || ''}
-                            onChange={e => {
-                              const updated = [...workExp];
-                              updated[index].location = e.target.value;
-                              setWorkExp(updated);
-                            }}
-                            className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                          />
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold mb-1 text-purple-500">Organization URL</label>
-                          <input
-                            type="text"
-                            value={job.organizationUrl || ''}
-                            onChange={e => {
-                              const updated = [...workExp];
-                              updated[index].organizationUrl = e.target.value;
-                              setWorkExp(updated);
-                            }}
-                            className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                          />
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold mb-1 text-purple-500">Responsibilities</label>
-                          {(job.points || []).map((point, pIdx) => (
-                            <div key={pIdx} className="flex gap-2 mb-2">
-                              <input
-                                type="text"
-                                value={point}
-                                onChange={e => {
-                                  const updated = [...workExp];
-                                  updated[index].points[pIdx] = e.target.value;
-                                  setWorkExp(updated);
-                                }}
-                                className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                              />
-                              <button
-                                onClick={() => {
-                                  const updated = [...workExp];
-                                  updated[index].points = updated[index].points.filter((_, i) => i !== pIdx);
-                                  setWorkExp(updated);
-                                }}
-                                className="p-2.5 rounded-lg text-red-500 hover:bg-red-500/10"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ))}
+                        <span className="text-slate-300 text-[11px] font-mono truncate">https://lubna-akter-portfolio.netlify.app</span>
+                      </div>
+                      <h4 className="text-sm sm:text-base text-blue-400 font-semibold hover:underline cursor-pointer truncate">
+                        {metaData.title || 'Lubna Akter Portfolio'}
+                      </h4>
+                      <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">
+                        {metaData.description || 'Official portfolio of Lubna Akter — Pharmacy Student, Pharmaceutical Researcher, and Clinical Science Scholar.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 2. SEO & Live Page Head Settings */}
+                  <div className="p-4 sm:p-5 rounded-2xl border border-purple-500/30 bg-slate-950/70 space-y-4">
+                    <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-purple-400" /> Search Engine Optimization (SEO) & Title
+                    </h4>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Website Tab Title (&lt;title&gt;)</label>
+                      <input
+                        type="text"
+                        value={metaData.title}
+                        onChange={e => setMetaData({ ...metaData, title: e.target.value })}
+                        placeholder="Lubna Akter Portfolio"
+                        className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white focus:border-purple-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">Website Meta Description</label>
+                      <textarea
+                        rows={3}
+                        value={metaData.description}
+                        onChange={e => setMetaData({ ...metaData, description: e.target.value })}
+                        placeholder="Official portfolio of Lubna Akter..."
+                        className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white focus:border-purple-500 resize-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">SEO Keywords (Comma Separated)</label>
+                      <input
+                        type="text"
+                        value={metaData.keywords}
+                        onChange={e => setMetaData({ ...metaData, keywords: e.target.value })}
+                        placeholder="Lubna Akter, Clinical Pharmacy, Pharmacology, Drug Design, Medical Writing"
+                        className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white focus:border-purple-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-purple-400">OpenGraph (OG) Social Title</label>
+                      <input
+                        type="text"
+                        value={metaData.ogTitle || ''}
+                        onChange={e => setMetaData({ ...metaData, ogTitle: e.target.value })}
+                        placeholder="Lubna Akter Portfolio"
+                        className="w-full p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white focus:border-purple-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 3. Browser Favicon Upload & Customization */}
+                  <div className="p-4 sm:p-5 rounded-2xl border border-purple-500/30 bg-slate-950/70 space-y-4">
+                    <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-purple-400" /> Website Favicon (.ico, .png, .svg)
+                    </h4>
+                    <p className="text-xs text-slate-400">
+                      Upload your custom favicon from your PC or provide an image URL. Updates the browser tab icon in real-time.
+                    </p>
+
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                      {/* Favicon Preview */}
+                      <div className="w-16 h-16 rounded-2xl border border-purple-400/40 bg-slate-900 flex items-center justify-center overflow-hidden shrink-0 shadow-lg shadow-purple-900/20">
+                        {metaData.faviconUrl ? (
+                          <img src={metaData.faviconUrl} alt="Favicon Preview" className="w-10 h-10 object-contain" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-500 to-pink-500 flex items-center justify-center text-white">
+                            <Sparkles className="w-5 h-5" />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex-1 space-y-2 w-full">
+                        <input
+                          type="text"
+                          value={metaData.faviconUrl || ''}
+                          onChange={e => setMetaData({ ...metaData, faviconUrl: e.target.value })}
+                          placeholder="Paste image URL or upload below..."
+                          className="w-full p-2.5 rounded-xl border text-xs sm:text-sm bg-slate-900 border-slate-700 text-white"
+                        />
+
+                        <div className="flex flex-wrap gap-2">
+                          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold cursor-pointer shadow-md">
+                            <Upload className="w-3.5 h-3.5" /> Upload Favicon from PC
+                            <input
+                              type="file"
+                              accept="image/*,.ico,.svg,.png"
+                              className="hidden"
+                              onChange={e => {
+                                if (e.target.files && e.target.files[0]) {
+                                  const reader = new FileReader();
+                                  reader.onload = ev => {
+                                    if (ev.target?.result) {
+                                      const url = ev.target.result as string;
+                                      setMetaData({ ...metaData, faviconUrl: url });
+                                      showSuccess('Favicon uploaded successfully!');
+                                    }
+                                  };
+                                  reader.readAsDataURL(e.target.files[0]);
+                                }
+                              }}
+                            />
+                          </label>
+
                           <button
+                            type="button"
                             onClick={() => {
-                              const updated = [...workExp];
-                              updated[index].points = [...(updated[index].points || []), 'New point'];
-                              setWorkExp(updated);
+                              setMetaData({ ...metaData, faviconUrl: '' });
+                              showSuccess('Favicon restored to default.');
                             }}
-                            className="text-xs text-purple-400 hover:text-purple-300 font-semibold"
+                            className="px-3 py-1.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-medium cursor-pointer"
                           >
-                            + Add Point
+                            Reset Default
                           </button>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 2. Entrepreneurial Experience */}
-              <div className="pt-4 border-t border-purple-500/20">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-indigo-400">Entrepreneurial Ventures</h3>
-                  <button
-                    onClick={() => setEntExp([...entExp, { role: 'New Role', organization: 'Brand Name', organizationUrl: '', period: '2026', location: 'Dhaka', points: ['Venture initiative'] }])}
-                    className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add Venture
-                  </button>
-                </div>
-                <div className="space-y-4">
-                  {entExp.map((ent, index) => (
-                    <div key={index} className={`p-4 rounded-xl border ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'} space-y-3 relative`}>
-                      <button
-                        onClick={() => setEntExp(entExp.filter((_, i) => i !== index))}
-                        className="absolute top-4 right-4 p-2 text-red-500 hover:bg-red-500/10 rounded-lg"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-10">
-                        <div>
-                          <label className="block text-xs font-semibold mb-1 text-indigo-400">Role</label>
-                          <input type="text" value={ent.role} onChange={e => { const updated = [...entExp]; updated[index].role = e.target.value; setEntExp(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1 text-indigo-400">Venture Name</label>
-                          <input type="text" value={ent.organization} onChange={e => { const updated = [...entExp]; updated[index].organization = e.target.value; setEntExp(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1 text-indigo-400">Period</label>
-                          <input type="text" value={ent.period} onChange={e => { const updated = [...entExp]; updated[index].period = e.target.value; setEntExp(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1 text-indigo-400">Location</label>
-                          <input type="text" value={ent.location || ''} onChange={e => { const updated = [...entExp]; updated[index].location = e.target.value; setEntExp(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold mb-1 text-indigo-400">Venture URL</label>
-                          <input type="text" value={ent.organizationUrl || ''} onChange={e => { const updated = [...entExp]; updated[index].organizationUrl = e.target.value; setEntExp(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold mb-1 text-indigo-400">Points</label>
-                          {(ent.points || []).map((point, pIdx) => (
-                            <div key={pIdx} className="flex gap-2 mb-2">
-                              <input type="text" value={point} onChange={e => { const updated = [...entExp]; updated[index].points[pIdx] = e.target.value; setEntExp(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
-                              <button onClick={() => { const updated = [...entExp]; updated[index].points = updated[index].points.filter((_, i) => i !== pIdx); setEntExp(updated); }} className="p-2.5 rounded-lg text-red-500 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></button>
-                            </div>
-                          ))}
-                          <button onClick={() => { const updated = [...entExp]; updated[index].points = [...(updated[index].points || []), 'New point']; setEntExp(updated); }} className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold">+ Add Point</button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 3. Training & Certifications */}
-              <div className="pt-4 border-t border-purple-500/20">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-pink-400">Courses & Certifications</h3>
-                  <button
-                    onClick={() => setCerts([...certs, { title: 'New Certification', issuer: 'Issuer', year: '2026', organizationUrl: '', points: [] }])}
-                    className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-pink-600 text-white hover:bg-pink-700"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add Certification
-                  </button>
-                </div>
-                <div className="space-y-4">
-                  {certs.map((cert, index) => (
-                    <div key={index} className={`p-4 rounded-xl border ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'} space-y-3 relative`}>
-                      <button
-                        onClick={() => setCerts(certs.filter((_, i) => i !== index))}
-                        className="absolute top-4 right-4 p-2 text-red-500 hover:bg-red-500/10 rounded-lg"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-10">
-                        <div>
-                          <label className="block text-xs font-semibold mb-1 text-pink-400 flex items-center gap-1"><Type className="w-3 h-3" /> Title</label>
-                          <input type="text" value={cert.title} onChange={e => { const updated = [...certs]; updated[index].title = e.target.value; setCerts(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1 text-pink-400 flex items-center gap-1"><Building2 className="w-3 h-3" /> Issuer</label>
-                          <input type="text" value={cert.issuer} onChange={e => { const updated = [...certs]; updated[index].issuer = e.target.value; setCerts(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1 text-pink-400 flex items-center gap-1"><Calendar className="w-3 h-3" /> Year</label>
-                          <input type="text" value={cert.year} onChange={e => { const updated = [...certs]; updated[index].year = e.target.value; setCerts(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1 text-pink-400 flex items-center gap-1"><MapPin className="w-3 h-3" /> Location</label>
-                          <input type="text" value={cert.location || ''} onChange={e => { const updated = [...certs]; updated[index].location = e.target.value; setCerts(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold mb-1 text-pink-400 flex items-center gap-1"><Link className="w-3 h-3" /> URL</label>
-                          <input type="text" value={cert.organizationUrl || ''} onChange={e => { const updated = [...certs]; updated[index].organizationUrl = e.target.value; setCerts(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold mb-1 text-pink-400">Details</label>
-                          {(cert.points || []).map((point, pIdx) => (
-                            <div key={pIdx} className="flex gap-2 mb-2">
-                              <input type="text" value={point} onChange={e => { const updated = [...certs]; if (!updated[index].points) updated[index].points = []; updated[index].points[pIdx] = e.target.value; setCerts(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
-                              <button onClick={() => { const updated = [...certs]; updated[index].points = (updated[index].points || []).filter((_, i) => i !== pIdx); setCerts(updated); }} className="p-2.5 rounded-lg text-red-500 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></button>
-                            </div>
-                          ))}
-                          <button onClick={() => { const updated = [...certs]; updated[index].points = [...(updated[index].points || []), 'New detail']; setCerts(updated); }} className="text-xs text-pink-400 hover:text-pink-300 font-semibold">+ Add Detail</button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 4. Affiliations & Voluntary */}
-              <div className="pt-4 border-t border-purple-500/20">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-emerald-400">Affiliations & Voluntary</h3>
-                  <button
-                    onClick={() => setAffiliations([...affiliations, { role: 'Member', organization: 'Organization Name', period: '2026', location: 'Dhaka', points: ['Contribution'] }])}
-                    className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add Affiliation
-                  </button>
-                </div>
-                <div className="space-y-4">
-                  {affiliations.map((aff, index) => (
-                    <div key={index} className={`p-4 rounded-xl border ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'} space-y-3 relative`}>
-                      <button
-                        onClick={() => setAffiliations(affiliations.filter((_, i) => i !== index))}
-                        className="absolute top-4 right-4 p-2 text-red-500 hover:bg-red-500/10 rounded-lg"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-10">
-                        <div>
-                          <label className="block text-xs font-semibold mb-1 text-emerald-400 flex items-center gap-1"><User className="w-3 h-3" /> Role</label>
-                          <input type="text" value={aff.role} onChange={e => { const updated = [...affiliations]; updated[index].role = e.target.value; setAffiliations(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1 text-emerald-400 flex items-center gap-1"><Building2 className="w-3 h-3" /> Organization</label>
-                          <input type="text" value={aff.organization} onChange={e => { const updated = [...affiliations]; updated[index].organization = e.target.value; setAffiliations(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1 text-emerald-400 flex items-center gap-1"><Calendar className="w-3 h-3" /> Period</label>
-                          <input type="text" value={aff.period} onChange={e => { const updated = [...affiliations]; updated[index].period = e.target.value; setAffiliations(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold mb-1 text-emerald-400 flex items-center gap-1"><MapPin className="w-3 h-3" /> Location</label>
-                          <input type="text" value={aff.location} onChange={e => { const updated = [...affiliations]; updated[index].location = e.target.value; setAffiliations(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold mb-1 text-emerald-400">Contributions</label>
-                          {(aff.points || []).map((point, pIdx) => (
-                            <div key={pIdx} className="flex gap-2 mb-2">
-                              <input type="text" value={point} onChange={e => { const updated = [...affiliations]; if (!updated[index].points) updated[index].points = []; updated[index].points[pIdx] = e.target.value; setAffiliations(updated); }} className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`} />
-                              <button onClick={() => { const updated = [...affiliations]; updated[index].points = (updated[index].points || []).filter((_, i) => i !== pIdx); setAffiliations(updated); }} className="p-2.5 rounded-lg text-red-500 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></button>
-                            </div>
-                          ))}
-                          <button onClick={() => { const updated = [...affiliations]; updated[index].points = [...(updated[index].points || []), 'New contribution']; setAffiliations(updated); }} className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold">+ Add Contribution</button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-
-          {activeTab === 'languages' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold">Language Proficiency & Percentages</h3>
-                  <p className="text-xs text-slate-400">Set the proficiency percentage and fluency level for each language.</p>
-                </div>
-                <button
-                  onClick={() => setLanguages([...languages, { id: 'lang-' + Date.now(), language: '', level: '', percentage: 70, description: '' }])}
-                  className="flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-xl bg-purple-600 text-white hover:bg-purple-700 font-medium cursor-pointer shadow-md"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add Language
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                {languages.map((item, index) => (
-                  <div key={item.id || index} className={`p-4 rounded-xl border ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'} space-y-3 relative`}>
-                    <div className="flex items-center justify-between pr-2">
-                      <span className="text-xs font-mono font-bold text-purple-400">
-                        Language #{index + 1}: {item.language || 'Untitled'} ({item.percentage}%)
-                      </span>
-                      <button
-                        onClick={() => setLanguages(languages.filter((_, i) => i !== index))}
-                        className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg cursor-pointer transition-colors"
-                        title="Delete language"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Language Name</label>
-                        <input
-                          type="text"
-                          value={item.language}
-                          onChange={e => {
-                            const updated = [...languages];
-                            updated[index].language = e.target.value;
-                            setLanguages(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Fluency Level</label>
-                        <input
-                          type="text"
-                          value={item.level}
-                          onChange={e => {
-                            const updated = [...languages];
-                            updated[index].level = e.target.value;
-                            setLanguages(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
-
-                      <div className="md:col-span-2 p-3 rounded-xl bg-purple-950/20 border border-purple-500/20 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-semibold text-purple-300">
-                            Proficiency Percentage: <span className="font-mono font-bold text-purple-200 text-sm">{item.percentage}%</span>
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            value={item.percentage}
-                            onChange={e => {
-                              const updated = [...languages];
-                              const val = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
-                              updated[index].percentage = val;
-                              setLanguages(updated);
-                            }}
-                            className={`w-20 p-1.5 rounded-lg border text-center font-mono text-xs ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                          />
-                        </div>
-
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={item.percentage}
-                          onChange={e => {
-                            const updated = [...languages];
-                            updated[index].percentage = parseInt(e.target.value) || 0;
-                            setLanguages(updated);
-                          }}
-                          className="w-full accent-purple-500 cursor-pointer"
-                        />
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Description</label>
-                        <input
-                          type="text"
-                          value={item.description || ''}
-                          onChange={e => {
-                            const updated = [...languages];
-                            updated[index].description = e.target.value;
-                            setLanguages(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
-                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {activeTab === 'interests' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Personal Interests</h3>
-                <button
-                  onClick={() => setInterests([...interests, { id: 'new-' + Date.now(), title: 'New Interest', category: 'Category', icon: 'Compass', shortDesc: 'Short desc', detailedDesc: 'Detailed desc', keywords: ['Keyword'] }])}
-                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add Interest
-                </button>
-              </div>
-              <div className="space-y-4">
-                {interests.map((interest, index) => (
-                  <div key={interest.id || index} className={`p-4 rounded-xl border ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'} space-y-3 relative`}>
-                    <button
-                      onClick={() => setInterests(interests.filter((_, i) => i !== index))}
-                      className="absolute top-4 right-4 p-2 text-red-500 hover:bg-red-500/10 rounded-lg"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pr-10">
-                      <div>
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Title</label>
-                        <input
-                          type="text"
-                          value={interest.title}
-                          onChange={e => {
-                            const updated = [...interests];
-                            updated[index].title = e.target.value;
-                            setInterests(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Category</label>
-                        <input
-                          type="text"
-                          value={interest.category}
-                          onChange={e => {
-                            const updated = [...interests];
-                            updated[index].category = e.target.value;
-                            setInterests(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Icon Emblem</label>
-                        <select
-                          value={interest.icon}
-                          onChange={e => {
-                            const updated = [...interests];
-                            updated[index].icon = e.target.value;
-                            setInterests(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200 text-slate-800' : 'bg-slate-900 border-slate-700 text-white'}`}
+                  {/* 4. Secondary Color Accent (Shades of Lavender) */}
+                  <div className="p-4 sm:p-5 rounded-2xl border border-purple-500/30 bg-slate-950/70 space-y-4">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                        <Palette className="w-4 h-4 text-purple-400" /> Secondary Color Accent (Shades of Lavender)
+                      </h4>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-purple-300">Active:</span>
+                        <span
+                          className="px-2 py-0.5 rounded-md text-xs font-mono font-bold text-white shadow-sm"
+                          style={{ backgroundColor: secondaryAccent }}
                         >
-                          <option value="Compass">Compass (Travel & Exploration)</option>
-                          <option value="Tv">Tv (Anime, Dramas & Media)</option>
-                          <option value="Sparkles">Sparkles (Cosmetics & Glam)</option>
-                          <option value="BookOpen">BookOpen (Journaling & Notes)</option>
-                          <option value="Utensils">Utensils (Food & Culinary)</option>
-                          <option value="Heart">Heart (Passion & Wellness)</option>
-                        </select>
-                      </div>
-                      <div className="md:col-span-3">
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Short Summary</label>
-                        <input
-                          type="text"
-                          value={interest.shortDesc}
-                          onChange={e => {
-                            const updated = [...interests];
-                            updated[index].shortDesc = e.target.value;
-                            setInterests(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
-                      <div className="md:col-span-3">
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Detailed Reflection / Perspective</label>
-                        <textarea
-                          rows={2}
-                          value={interest.detailedDesc}
-                          onChange={e => {
-                            const updated = [...interests];
-                            updated[index].detailedDesc = e.target.value;
-                            setInterests(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
+                          {secondaryAccent}
+                        </span>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+                    <p className="text-xs text-slate-400">
+                      Choose any shade from the lavender spectrum or enter a custom hex. The primary layout remains balanced while highlights, active indicators, and glowing effects across the portfolio and dashboard update immediately.
+                    </p>
 
-          {activeTab === 'references' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold">Academic & Professional References</h3>
-                  <p className="text-xs text-slate-400">Add or manage recommendation referees on your portfolio.</p>
-                </div>
-                <button
-                  onClick={() => setReferences([...references, { name: '', institution: '', title: '', phone: '', email: '' }])}
-                  className="flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-xl bg-purple-600 text-white hover:bg-purple-700 font-medium cursor-pointer shadow-md"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add Reference
-                </button>
-              </div>
+                    {/* Curated Palette of Lavender Shades */}
+                    <div className="grid grid-cols-2 xs:grid-cols-4 gap-2.5">
+                      {[
+                        { name: 'Soft Lavender', hex: '#d8b4fe' },
+                        { name: 'Classic Lavender', hex: '#c084fc' },
+                        { name: 'Amethyst Lavender', hex: '#a855f7' },
+                        { name: 'Royal Violet', hex: '#8b5cf6' },
+                        { name: 'Lavender Mist', hex: '#e9d5ff' },
+                        { name: 'Electric Lavender', hex: '#b794f4' },
+                        { name: 'Dusty Lavender', hex: '#9f7aea' },
+                        { name: 'Vibrant Orchid', hex: '#c026d3' },
+                      ].map(shade => {
+                        const isSelected = secondaryAccent.toLowerCase() === shade.hex.toLowerCase();
+                        return (
+                          <button
+                            key={shade.hex}
+                            type="button"
+                            onClick={() => {
+                              setSecondaryAccent(shade.hex);
+                              updateSecondaryAccent(shade.hex);
+                              showSuccess(`Color accent set to ${shade.name}!`);
+                            }}
+                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 group ${
+                              isSelected
+                                ? 'border-white bg-slate-900 shadow-lg scale-102 ring-2 ring-white/50'
+                                : 'border-slate-800 bg-slate-900/60 hover:border-purple-500/50 hover:bg-slate-900'
+                            }`}
+                          >
+                            <span
+                              className="w-5 h-5 rounded-lg shrink-0 shadow-sm transition-transform group-hover:scale-110"
+                              style={{ backgroundColor: shade.hex }}
+                            />
+                            <div className="min-w-0">
+                              <span className="block text-xs font-semibold text-white truncate">{shade.name}</span>
+                              <span className="block text-[10px] font-mono text-slate-400">{shade.hex}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
 
-              <div className="space-y-4">
-                {references.map((ref, index) => (
-                  <div key={index} className={`p-4 rounded-xl border ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'} space-y-3 relative`}>
-                    <div className="flex items-center justify-between pr-2">
-                      <span className="text-xs font-mono font-bold text-purple-400">
-                        Reference #{index + 1}
-                      </span>
+                    {/* Custom Hex Color Picker & Code Input */}
+                    <div className="pt-3 border-t border-purple-500/20 flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <label className="text-xs font-semibold text-purple-300">Custom Color & Code:</label>
+                        <input
+                          type="color"
+                          value={secondaryAccent}
+                          onChange={e => {
+                            setSecondaryAccent(e.target.value);
+                            updateSecondaryAccent(e.target.value);
+                          }}
+                          className="w-9 h-9 rounded-lg border border-slate-700 cursor-pointer bg-transparent"
+                        />
+                        <input
+                          type="text"
+                          value={secondaryAccent}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setSecondaryAccent(val);
+                            if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                              updateSecondaryAccent(val);
+                            }
+                          }}
+                          placeholder="#c084fc"
+                          className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono text-white w-28 focus:outline-none focus:border-purple-500"
+                        />
+                      </div>
                       <button
-                        onClick={() => setReferences(references.filter((_, i) => i !== index))}
-                        className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg cursor-pointer transition-colors"
-                        title="Delete reference"
+                        type="button"
+                        onClick={() => {
+                          setSecondaryAccent('#c084fc');
+                          updateSecondaryAccent('#c084fc');
+                          showSuccess('Secondary accent reset to signature lavender (#c084fc).');
+                        }}
+                        className="px-3 py-1.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-medium cursor-pointer"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        Reset to Classic Lavender
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 13. SETTINGS TAB */}
+              {activeTab === 'settings' && (
+                <div className="space-y-6 max-w-4xl mx-auto">
+                  <div className="pb-2 border-b border-purple-500/20">
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                      <Settings className="w-5 h-5 text-purple-400" /> System Settings & Operations
+                    </h3>
+                    <p className="text-xs text-slate-400">Traffic analytics, password protection, data backups, and recovery.</p>
+                  </div>
+
+                  {/* 1. Traffic Trends */}
+                  <div className="p-5 rounded-2xl border border-purple-500/30 bg-slate-950/70 space-y-3">
+                    <TrafficChart />
+                  </div>
+
+                  {/* 2. Password Security */}
+                  <div className="p-5 rounded-2xl border border-purple-500/30 bg-slate-950/70 space-y-3">
+                    <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-purple-400" /> Admin Access Password
+                    </h4>
+                    <p className="text-xs text-slate-400">Set a custom password to protect your Portfolio Dashboard from unauthorized edits.</p>
+                    <div className="flex gap-2 max-w-md">
+                      <input
+                        type="password"
+                        value={newAdminPwd}
+                        onChange={e => setNewAdminPwd(e.target.value)}
+                        placeholder="Enter new password (min. 4 characters)..."
+                        className="flex-1 p-2.5 rounded-xl border text-sm bg-slate-900 border-slate-700 text-white"
+                      />
+                      <button
+                        onClick={() => {
+                          if (newAdminPwd.trim().length >= 4) {
+                            localStorage.setItem('lubna_admin_pwd', newAdminPwd.trim());
+                            setNewAdminPwd('');
+                            showSuccess('Admin password updated successfully!');
+                          } else {
+                            alert('Password must be at least 4 characters long.');
+                          }
+                        }}
+                        className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold cursor-pointer"
+                      >
+                        Update
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3. Export / Import Backup */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-5 rounded-2xl border border-purple-500/30 bg-slate-950/70 space-y-2">
+                      <h4 className="text-sm font-semibold text-white">Export Backup (JSON)</h4>
+                      <p className="text-xs text-slate-400">Download your entire portfolio content, uploaded pictures, and CV as a backup file.</p>
+                      <button
+                        onClick={handleExportJSON}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold cursor-pointer shadow-md mt-2"
+                      >
+                        <Download className="w-4 h-4" /> Download Backup
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Referee Name</label>
-                        <input
-                          type="text"
-                          value={ref.name}
-                          onChange={e => {
-                            const updated = [...references];
-                            updated[index].name = e.target.value;
-                            setReferences(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Designation / Title</label>
-                        <input
-                          type="text"
-                          value={ref.title}
-                          onChange={e => {
-                            const updated = [...references];
-                            updated[index].title = e.target.value;
-                            setReferences(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Institution / University</label>
-                        <input
-                          type="text"
-                          value={ref.institution}
-                          onChange={e => {
-                            const updated = [...references];
-                            updated[index].institution = e.target.value;
-                            setReferences(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Phone Number</label>
-                        <input
-                          type="text"
-                          value={ref.phone}
-                          onChange={e => {
-                            const updated = [...references];
-                            updated[index].phone = e.target.value;
-                            setReferences(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-semibold mb-1 text-purple-500">Email Address</label>
-                        <input
-                          type="email"
-                          value={ref.email}
-                          onChange={e => {
-                            const updated = [...references];
-                            updated[index].email = e.target.value;
-                            setReferences(updated);
-                          }}
-                          className={`w-full p-2.5 rounded-lg border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                        />
-                      </div>
+                    <div className="p-5 rounded-2xl border border-purple-500/30 bg-slate-950/70 space-y-2">
+                      <h4 className="text-sm font-semibold text-white">Restore Backup (JSON)</h4>
+                      <p className="text-xs text-slate-400">Restore your portfolio data from a previously downloaded backup JSON file.</p>
+                      <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold cursor-pointer shadow-md mt-2">
+                        <Upload className="w-4 h-4" /> Choose Backup File
+                        <input type="file" accept=".json" onChange={handleImportJSON} className="hidden" />
+                      </label>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {activeTab === 'titles' && (
-            <div className="space-y-4 max-w-xl mx-auto py-4">
-              <h3 className="text-lg font-semibold text-center">Customize Section Titles</h3>
-              <p className="text-xs text-slate-400 text-center mb-4">Change the headings of each section on your portfolio website.</p>
-              
-              <div className={`p-6 rounded-2xl border space-y-4 ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'}`}>
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">Research Section Title</label>
-                  <input
-                    type="text"
-                    value={sectionTitles.research}
-                    onChange={e => setSectionTitles({ ...sectionTitles, research: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">Skills Section Title</label>
-                  <input
-                    type="text"
-                    value={sectionTitles.skills}
-                    onChange={e => setSectionTitles({ ...sectionTitles, skills: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">Experience Section Title</label>
-                  <input
-                    type="text"
-                    value={sectionTitles.experience}
-                    onChange={e => setSectionTitles({ ...sectionTitles, experience: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">Education Section Title</label>
-                  <input
-                    type="text"
-                    value={sectionTitles.education}
-                    onChange={e => setSectionTitles({ ...sectionTitles, education: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">Language Section Title</label>
-                  <input
-                    type="text"
-                    value={sectionTitles.languages || ''}
-                    onChange={e => setSectionTitles({ ...sectionTitles, languages: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">About / Passions Section Title</label>
-                  <input
-                    type="text"
-                    value={sectionTitles.about}
-                    onChange={e => setSectionTitles({ ...sectionTitles, about: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">References Section Title</label>
-                  <input
-                    type="text"
-                    value={sectionTitles.references || ''}
-                    onChange={e => setSectionTitles({ ...sectionTitles, references: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-purple-500">Contact Section Title</label>
-                  <input
-                    type="text"
-                    value={sectionTitles.contact || ''}
-                    onChange={e => setSectionTitles({ ...sectionTitles, contact: e.target.value })}
-                    className={`w-full p-3 rounded-xl border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white'}`}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'settings' && (
-            <div className="space-y-6 max-w-xl mx-auto py-6">
-              <h3 className="text-lg font-semibold text-center">Security & Password Protection</h3>
-              
-              <div className={`p-6 rounded-2xl border space-y-4 ${isClinical ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'}`}>
-                <TrafficChart />
-
-                <div>
-                  <h4 className="font-medium text-sm mb-1">Change Admin Dashboard Password</h4>
-                  <p className="text-xs text-slate-400 mb-3">Set a custom password to protect the content editor.</p>
-                  <div className="flex gap-2">
-                    <input
-                      type="password"
-                      value={newAdminPwd}
-                      onChange={e => setNewAdminPwd(e.target.value)}
-                      placeholder="Enter new password..."
-                      className={`flex-1 p-2.5 rounded-xl border text-sm ${isClinical ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800 text-white'}`}
-                    />
+                  {/* 4. Reset to Default */}
+                  <div className="p-5 rounded-2xl border border-red-500/30 bg-red-950/15 flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-semibold text-red-400">Reset to Default Content</h4>
+                      <p className="text-xs text-slate-400">Restore the original official profile data and research publications.</p>
+                    </div>
                     <button
                       onClick={() => {
-                        if (newAdminPwd.trim().length >= 4) {
-                          localStorage.setItem('lubna_admin_pwd', newAdminPwd.trim());
-                          setNewAdminPwd('');
-                          showSuccess('Admin password updated successfully!');
-                        } else {
-                          alert('Password must be at least 4 characters long.');
+                        if (window.confirm('Are you sure you want to restore official default content? Any custom local edits will be reset.')) {
+                          resetToDefault();
+                          localStorage.removeItem('lubna_admin_pwd');
+                          setProfile(PORTFOLIO_DATA.profile);
+                          setCoreComps([...PORTFOLIO_DATA.coreCompetencies]);
+                          setSoftSkills([...PORTFOLIO_DATA.softSkills]);
+                          setComputerTools([...PORTFOLIO_DATA.computerLiteracy]);
+                          setEducation([...PORTFOLIO_DATA.education]);
+                          setResearchProjects([...PORTFOLIO_DATA.researchProjects]);
+                          setWorkExp([...PORTFOLIO_DATA.workExperience]);
+                          setEntExp([...PORTFOLIO_DATA.entrepreneurialExperience]);
+                          setPersonalDetails({ ...PORTFOLIO_DATA.personalDetails });
+                          setInterests([...PORTFOLIO_DATA.personalInterests]);
+                          setReferences([...PORTFOLIO_DATA.references]);
+                          setCerts([...PORTFOLIO_DATA.certifications]);
+                          showSuccess('Portfolio restored to official default!');
                         }
                       }}
-                      className="px-4 py-2.5 rounded-xl bg-purple-600 text-white text-sm font-medium hover:bg-purple-700"
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/30 text-xs font-semibold transition-all cursor-pointer"
                     >
-                      Update Password
+                      <RotateCcw className="w-4 h-4" /> Reset Default
                     </button>
                   </div>
                 </div>
+              )}
 
-                <div className="pt-4 border-t border-purple-500/20 flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium text-sm">Export Backup JSON</h4>
-                    <p className="text-xs text-slate-400">Download all your portfolio content and images.</p>
-                  </div>
-                  <button
-                    onClick={handleExportJSON}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 text-white text-sm font-medium hover:bg-purple-700"
-                  >
-                    <Download className="w-4 h-4" /> Export
-                  </button>
-                </div>
+            </div>
 
-                <div className="pt-4 border-t border-purple-500/20 flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium text-sm">Import Backup JSON</h4>
-                    <p className="text-xs text-slate-400">Restore your portfolio data from backup.</p>
-                  </div>
-                  <label className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 cursor-pointer">
-                    <Upload className="w-4 h-4" /> Import
-                    <input type="file" accept=".json" onChange={handleImportJSON} className="hidden" />
-                  </label>
-                </div>
-
-                <div className="pt-4 border-t border-red-500/20 flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium text-sm text-red-500">Reset to Default</h4>
-                    <p className="text-xs text-slate-400">Restore official default portfolio content.</p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (window.confirm('Are you sure you want to reset all data to default?')) {
-                        resetToDefault();
-                        setProfile(PORTFOLIO_DATA.profile);
-                        setCoreComps([...PORTFOLIO_DATA.coreCompetencies]);
-                        setSoftSkills([...PORTFOLIO_DATA.softSkills]);
-                        setComputerTools([...PORTFOLIO_DATA.computerLiteracy]);
-                        setEducation([...PORTFOLIO_DATA.education]);
-                        setResearchProjects([...PORTFOLIO_DATA.researchProjects]);
-                        setWorkExp([...PORTFOLIO_DATA.workExperience]);
-                        setEntExp([...PORTFOLIO_DATA.entrepreneurialExperience]);
-                        setPersonalDetails({ ...PORTFOLIO_DATA.personalDetails });
-                        setInterests([...PORTFOLIO_DATA.personalInterests]);
-                        setReferences([...PORTFOLIO_DATA.references]);
-                        setCerts([...PORTFOLIO_DATA.certifications]);
-                        showSuccess('Portfolio reset to default!');
-                      }
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600/10 text-red-500 border border-red-500/30 text-sm font-medium hover:bg-red-600 hover:text-white transition-all"
-                  >
-                    <RotateCcw className="w-4 h-4" /> Reset
-                  </button>
-                </div>
+            {/* Bottom Status & Quick Save Footer Bar */}
+            <div className={`px-6 py-3 border-t flex items-center justify-end shrink-0 ${
+              isClinical ? 'border-slate-200 bg-slate-50' : 'border-purple-500/20 bg-slate-950/90'
+            }`}>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleSaveAll}
+                  disabled={isSaving}
+                  style={{
+                    background: isSaving ? undefined : `linear-gradient(135deg, #7c3aed, ${activeAccent})`,
+                  }}
+                  className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer ${
+                    isSaving
+                      ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                      : 'text-white hover:scale-[1.02]'
+                  }`}
+                >
+                  <Save className={`w-3.5 h-3.5 ${isSaving ? 'animate-spin' : ''}`} />
+                  {isSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-xl text-xs font-medium border border-slate-700 hover:bg-slate-800 text-slate-300 transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
               </div>
             </div>
-          )}
+
+          </main>
         </div>
 
-        {/* Footer */}
-        <div className={`flex items-center justify-between p-4 border-t ${isClinical ? 'border-purple-100 bg-purple-50/30' : 'border-purple-900/30 bg-purple-950/10'}`}>
-          <p className="text-xs text-purple-500 font-medium">Changes are stored locally in your browser storage instantly.</p>
-          <button
-            onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-purple-600 text-white font-medium text-sm hover:bg-purple-700"
-          >
-            Done
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -59,18 +59,18 @@ export const AboutSection: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-60px' }}
+          viewport={{ once: true }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="mb-10 text-center"
+          className="mb-8 sm:mb-10 text-center px-2"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-400/30 text-purple-300 text-xs font-mono mb-2">
-            <Heart className="w-3.5 h-3.5 text-purple-400" />
+          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-400/30 text-purple-300 text-[11px] sm:text-xs font-mono mb-2">
+            <Heart className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-purple-400" />
             <span>{t.about.tag}</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-white mt-1 tracking-tight">
+          <h2 className="text-xl sm:text-3xl font-bold text-white mt-1 tracking-tight text-center">
             {data.sectionTitles?.about || t.about.title}
           </h2>
-          <p className="text-xs sm:text-sm text-purple-200/70 mt-1 max-w-xl mx-auto">
+          <p className="text-xs sm:text-sm text-purple-200/70 mt-1 max-w-xl mx-auto text-center leading-relaxed">
             {t.about.interestsSubtitle}
           </p>
         </motion.div>
@@ -172,18 +172,18 @@ export const AboutSection: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-60px' }}
+            viewport={{ once: true }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="text-center mb-8"
+            className="text-center mb-8 px-2"
           >
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-400/30 text-purple-300 text-xs font-mono mb-2">
-              <UserCheck className="w-3.5 h-3.5 text-purple-400" />
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-400/30 text-purple-300 text-[11px] sm:text-xs font-mono mb-2">
+              <UserCheck className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-purple-400" />
               <span>Academic & Clinical Endorsements</span>
             </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+            <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight text-center">
               {data.sectionTitles?.references || 'Professional References'}
             </h3>
-            <p className="text-xs sm:text-sm text-purple-200/70 mt-1 max-w-xl mx-auto">
+            <p className="text-xs sm:text-sm text-purple-200/70 mt-1 max-w-xl mx-auto text-center leading-relaxed">
               Academic & clinical credentials with direct institutional endorsements.
             </p>
           </motion.div>
@@ -209,26 +209,26 @@ export const AboutSection: React.FC = () => {
                       : 'bg-slate-900/60 border-purple-500/20 hover:border-purple-400/40 shadow-md shadow-black/20'
                   }`}
                 >
-                  {/* Upfront view: ONLY the referee's name is displayed */}
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3.5">
-                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
+                  {/* Upfront view: ONLY the referee's name is displayed - Centered on mobile */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between text-center sm:text-left gap-3">
+                    <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 sm:gap-3.5 text-center sm:text-left">
+                      <div className={`w-10 sm:w-11 h-10 sm:h-11 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
                         isHovered 
                           ? 'bg-purple-600 border-purple-300 text-white shadow-md shadow-purple-600/30' 
                           : 'bg-purple-950/60 border-purple-500/30 text-purple-300'
                       }`}>
-                        <GraduationCap className="w-5 h-5" />
+                        <GraduationCap className="w-4 sm:w-5 h-4 sm:h-5" />
                       </div>
                       <div>
                         {/* ONLY Name displayed first */}
-                        <h4 className="font-bold text-white text-base sm:text-lg leading-snug">
+                        <h4 className="font-bold text-white text-base sm:text-lg leading-snug text-center sm:text-left">
                           {ref.name}
                         </h4>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-mono text-purple-300/80 bg-purple-950/50 px-3 py-1 rounded-lg border border-purple-500/20 hidden sm:inline-block">
+                    <div className="hidden sm:flex items-center justify-center gap-2">
+                      <span className="text-[11px] font-mono text-purple-300/80 bg-purple-950/50 px-3 py-1 rounded-lg border border-purple-500/20">
                         {isHovered ? 'Details' : 'Contact'}
                       </span>
                       <span className={`text-[11px] font-mono p-1 rounded-md transition-colors ${
@@ -247,20 +247,26 @@ export const AboutSection: React.FC = () => {
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.25 }}
-                        className="mt-4 pt-4 border-t border-purple-500/20 space-y-3 text-xs sm:text-sm"
+                        className="mt-4 pt-4 border-t border-purple-500/20 space-y-3 text-xs sm:text-sm text-center sm:text-left"
                       >
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-300">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-300 text-center sm:text-left">
                           <div>
                             <span className="text-[10px] uppercase font-mono text-purple-400 block">Designation / Role</span>
-                            <span className="text-white font-medium">{ref.title}</span>
+                            <span className="text-white font-medium">
+                              <span className="sm:hidden whitespace-pre-line">{ref.title.replace(/,\s*/g, ',\n')}</span>
+                              <span className="hidden sm:inline">{ref.title}</span>
+                            </span>
                           </div>
                           <div>
                             <span className="text-[10px] uppercase font-mono text-purple-400 block">Institution</span>
-                            <span className="text-white font-medium">{ref.institution}</span>
+                            <span className="text-white font-medium">
+                              <span className="sm:hidden whitespace-pre-line">{ref.institution.replace(/,\s*/g, ',\n')}</span>
+                              <span className="hidden sm:inline">{ref.institution}</span>
+                            </span>
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm font-mono pt-2">
+                        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 sm:gap-4 text-xs sm:text-sm font-mono pt-2">
                           <a
                             href={`tel:${ref.phone.replace(/[^0-9+]/g, '')}`}
                             onClick={(e) => e.stopPropagation()}

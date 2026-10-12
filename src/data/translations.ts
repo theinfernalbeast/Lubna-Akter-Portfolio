@@ -21,7 +21,7 @@ export const TRANSLATIONS = {
       downloadCv: 'Download CV',
       contactMe: 'Contact Me',
       view3d: '3D Molecule',
-      photo: 'This is Lubna ✨',
+      photo: 'Profile Photo',
       dragRotate: 'Drag to rotate · Scroll to zoom',
     },
     research: {
@@ -131,7 +131,7 @@ export const TRANSLATIONS = {
       downloadCv: 'সিভি ডাউনলোড',
       contactMe: 'যোগাযোগ করুন',
       view3d: '৩ডি মলিকিউল',
-      photo: 'আমি লুবনা ✨',
+      photo: 'প্রোফাইল ছবি',
       dragRotate: 'ঘুরাতে ড্র্যাগ করুন · জুম করতে স্ক্রোল করুন',
     },
     research: {

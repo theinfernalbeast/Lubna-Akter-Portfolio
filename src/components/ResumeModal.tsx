@@ -165,7 +165,8 @@ export const ResumeModal: React.FC<ResumeModalProps> = ({ isOpen, onClose }) => 
                   <tr className="border-b border-current/20 bg-current/5 font-mono text-[11px]">
                     <th className="p-2 font-bold">Qualification</th>
                     <th className="p-2 font-bold">Institution</th>
-                    <th className="p-2 font-bold">Year & Status</th>
+                    <th className="p-2 font-bold">Timeline</th>
+                    <th className="p-2 font-bold">Location</th>
                     <th className="p-2 font-bold text-right">Result</th>
                   </tr>
                 </thead>
@@ -174,7 +175,8 @@ export const ResumeModal: React.FC<ResumeModalProps> = ({ isOpen, onClose }) => 
                     <tr key={idx}>
                       <td className="p-2 font-semibold">{edu.discipline}</td>
                       <td className="p-2">{edu.institution}</td>
-                      <td className="p-2">{edu.yearStatus}</td>
+                      <td className="p-2">{edu.timeline}</td>
+                      <td className="p-2">{edu.location}</td>
                       <td className="p-2 text-right font-mono font-semibold">{edu.result}</td>
                     </tr>
                   ))}

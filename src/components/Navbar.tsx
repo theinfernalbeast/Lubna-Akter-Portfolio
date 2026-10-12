@@ -142,10 +142,10 @@ export const Navbar: React.FC<NavbarProps> = () => {
         </div>
       </div>
 
-      {/* Mobile Drawer */}
+      {/* Mobile Drawer - Central aligned links */}
       {mobileMenuOpen && (
         <div
-          className={`md:hidden border-b px-4 pt-2 pb-5 space-y-2.5 backdrop-blur-xl transition-colors ${
+          className={`md:hidden border-b px-4 pt-3 pb-5 space-y-1 backdrop-blur-xl transition-colors text-center ${
             isClinical
               ? 'bg-white/98 border-purple-200 text-slate-800 shadow-xl'
               : 'bg-slate-950/98 border-purple-500/20 text-slate-200'
@@ -154,56 +154,56 @@ export const Navbar: React.FC<NavbarProps> = () => {
           <a
             href="#research"
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-sm font-medium text-slate-200 hover:text-purple-300 py-1"
+            className="block text-center text-xs font-semibold text-slate-200 hover:text-purple-300 py-2 border-b border-purple-500/10"
           >
             {t.nav.research}
           </a>
           <a
             href="#competencies"
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-sm font-medium text-slate-200 hover:text-purple-300 py-1"
+            className="block text-center text-xs font-semibold text-slate-200 hover:text-purple-300 py-2 border-b border-purple-500/10"
           >
             {t.nav.skills}
           </a>
           <a
             href="#experience"
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-sm font-medium text-slate-200 hover:text-purple-300 py-1"
+            className="block text-center text-xs font-semibold text-slate-200 hover:text-purple-300 py-2 border-b border-purple-500/10"
           >
             {t.nav.timeline}
           </a>
           <a
             href="#education"
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-sm font-medium text-slate-200 hover:text-purple-300 py-1"
+            className="block text-center text-xs font-semibold text-slate-200 hover:text-purple-300 py-2 border-b border-purple-500/10"
           >
             {t.nav.education}
           </a>
           <a
             href="#languages"
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-sm font-medium text-slate-200 hover:text-purple-300 py-1"
+            className="block text-center text-xs font-semibold text-slate-200 hover:text-purple-300 py-2 border-b border-purple-500/10"
           >
             Language
           </a>
           <a
             href="#interests"
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-sm font-medium text-slate-200 hover:text-purple-300 py-1"
+            className="block text-center text-xs font-semibold text-slate-200 hover:text-purple-300 py-2 border-b border-purple-500/10"
           >
             Interests
           </a>
           <a
             href="#references"
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-sm font-medium text-slate-200 hover:text-purple-300 py-1"
+            className="block text-center text-xs font-semibold text-slate-200 hover:text-purple-300 py-2 border-b border-purple-500/10"
           >
             References
           </a>
           <a
             href="#contact"
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-sm font-medium text-slate-200 hover:text-purple-300 py-1"
+            className="block text-center text-xs font-semibold text-purple-300 hover:text-white py-2"
           >
             {t.nav.contact}
           </a>
